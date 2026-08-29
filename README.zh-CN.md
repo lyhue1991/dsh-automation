@@ -15,6 +15,8 @@
 
 DSH Automation 是社区维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，并非 DeepSeek AI 官方产品。
 
+衍生自 Apache-2.0 开源原版 [@michengai/dsh-automation](https://github.com/MichengAI/dsh-automation)，详见 [NOTICE](NOTICE)。
+
 ## 主要功能
 
 - **定时编码任务** — 每次到期都在新的 Agent 和 Session 中运行。

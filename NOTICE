@@ -1,9 +1,16 @@
 dsh-automation
-Copyright 2026 lyhue1991 contributors
+
+衍生自 / Derived from:
+@michengai/dsh-automation — https://github.com/MichengAI/dsh-automation (Apache License 2.0)
+本发行版是上述项目的衍生作品，保留其原始版权与许可声明。
+This distribution is a derivative of the above project and retains its copyright and license notices.
+
+Copyright 2026 MichengAI contributors (原始作品 / original work)
+Copyright 2026 lyhue1991 contributors (本发行版 / this distribution)
 
 本项目的 TypeScript 源码、构建脚本与项目文档采用 Apache License 2.0。
 
 产品模型参考了 DeepSeek Harness 社区中的独立自动化实践：
 - 独立 Session 调度与审计历史（titanwings/dsh-automation，MIT）
 
-上述参考实现的许可证与版权仍归其原作者所有；本仓库实现为独立编写，不复制其专有代码。
+上述参考实现的许可证与版权仍归其原作者所有。

@@ -15,6 +15,8 @@
 
 DSH Automation is a community-maintained [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) plugin, not an official DeepSeek AI product.
 
+Derived from an Apache-2.0 licensed original, [@michengai/dsh-automation](https://github.com/MichengAI/dsh-automation); see [NOTICE](NOTICE).
+
 ## Features
 
 - **Scheduled coding tasks** — each run starts a fresh Agent and Session.
