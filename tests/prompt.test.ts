@@ -17,12 +17,12 @@ test('用户说创建定时任务时应走 automation_create，而不是操作�
 })
 
 test('工具描述和系统提示必须点名定时任务，并禁止默认建议 cron', () => {
-  assert.match(AUTOMATION_CREATE_DESCRIPTION, /定时任务/)
-  assert.match(AUTOMATION_CREATE_DESCRIPTION, /不要改用 crontab/)
+  assert.match(AUTOMATION_CREATE_DESCRIPTION, /scheduled task/)
+  assert.match(AUTOMATION_CREATE_DESCRIPTION, /Do not fall back to crontab/)
   assert.match(AUTOMATION_CREATE_DESCRIPTION, /weekdays/)
   assert.match(AUTOMATION_PROMPT_TEXT, /automation_create/)
-  assert.match(AUTOMATION_PROMPT_TEXT, /不要建议 crontab/)
-  assert.match(AUTOMATION_PROMPT_TEXT, /schedule_create 只用于当前会话里的提醒/)
+  assert.match(AUTOMATION_PROMPT_TEXT, /Do not suggest crontab/)
+  assert.match(AUTOMATION_PROMPT_TEXT, /schedule_create is only for reminders/)
   assert.match(AUTOMATION_PROMPT_TEXT, /kind=hourly, minute=15/)
   assert.match(AUTOMATION_PROMPT_TEXT, /kind=monthly, month_day=31/)
   assert.match(AUTOMATION_PROMPT_TEXT, /kind=custom, every_days=3/)

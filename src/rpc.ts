@@ -103,7 +103,7 @@ function errorResult(
   if (aborted) {
     return {
       ok: false,
-      error: { code: 'cancelled', message: '自动化请求已取消。', details: {} },
+      error: { code: 'cancelled', message: 'The automation request was cancelled.', details: {} },
     }
   }
   const message = error instanceof Error ? error.message : String(error)
@@ -112,7 +112,7 @@ function errorResult(
     ok: false,
     error: {
       code: badRequest ? 'bad-request' : 'internal',
-      message: badRequest ? message : '自动化服务暂时无法完成请求。',
+      message: badRequest ? message : 'The automation service could not complete the request.',
       details: badRequest ? { issues: [] } : {},
     },
   }

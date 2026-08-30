@@ -7,6 +7,7 @@ export interface Config {
     readonly runTimeoutMinutes?: number;
     readonly misfireGraceMinutes?: number;
     readonly historyLimit?: number;
+    readonly liveSessionLimit?: number;
 }
 export declare const Config: any;
 export type SessionApprovalPolicy = 'ask' | 'never';

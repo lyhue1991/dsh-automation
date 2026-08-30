@@ -48,11 +48,11 @@ export function unattendedToolGuardReason(name: string, args: unknown): string |
   if ((name === 'bash' || name === 'pwsh')
     && typeof args === 'object' && args !== null
     && (args as Record<string, unknown>).run_in_background === true) {
-    return '无人值守运行不允许启动后台进程。'
+    return 'Unattended runs are not allowed to start background processes.'
   }
   return UNATTENDED_TOOL_ALLOWLIST.has(name)
     ? undefined
-    : `工具 '${name}' 不在无人值守自动化允许列表中。`
+    : `Tool '${name}' is not in the unattended automation allowlist.`
 }
 
 export interface RunCompletion {
@@ -67,7 +67,17 @@ export interface ExecutorConfig {
   readonly sessionId: string
   readonly signal?: AbortSignal
   readonly onHandleDisposed?: (sessionId: string) => void
+  /**
+   * 终态后不 dispose，把 Agent 转成交互会话并通过 onHandleKept 移交调用方持有。
+   * Web 客户端把 session/disposed 视为页面生命周期内的永久下线（removed 标记
+   * 不复位），dispose 会让刚跑完的会话立刻变成“会话不可用”，只能刷新恢复。
+   * 服务停止（signal abort）时仍由执行器自行清理，不走该路径。
+   */
+  readonly keepSessionOnCompletion?: boolean
+  readonly onHandleKept?: (sessionId: string, handle: AgentHandle) => void
 }
+
+type AgentHandle = Awaited<ReturnType<Context['agents']['create']>>
 
 /** 从持久化日志恢复一个已完成的自动化会话，供用户继续交互。 */
 export async function resumeAutomationSession(
@@ -114,6 +124,19 @@ export function applyUnattendedPermission(
   setApprovalPolicy(session, 'never')
 }
 
+/** 运行结束后解除无人值守限制，让该 Agent 可以继续被用户交互。 */
+export function convertRunAgentToInteractive(
+  handle: Pick<AgentHandle, 'agent'>,
+  removeToolGuard: (() => void) | undefined,
+): void {
+  try {
+    removeToolGuard?.()
+  } catch {
+    // guard 所属的 agent scope 已自行卸载时忽略。
+  }
+  setApprovalPolicy(handle.agent.session, 'ask')
+}
+
 export function summarizeRun(events: readonly SessionEventLike[], firstSeq: number): {
   readonly text: string
   readonly reason?: Record<string, any>
@@ -147,16 +170,16 @@ function boundSummary(value: string): string | undefined {
 }
 
 function reasonError(reason: Record<string, any> | undefined): { readonly code: string; readonly message: string } {
-  if (reason === undefined) return { code: 'no_turn_result', message: '本次自动化没有产生完整 turn。' }
+  if (reason === undefined) return { code: 'no_turn_result', message: 'This automation run did not produce a complete turn.' }
   if (reason.kind === 'error') {
     return {
       code: typeof reason.error?.code === 'string' ? reason.error.code : 'agent_error',
       message: typeof reason.error?.message === 'string'
         ? reason.error.message
-        : '自动化 Agent 执行失败。',
+        : 'The automation agent failed to execute.',
     }
   }
-  return { code: `turn_${String(reason.kind)}`, message: `自动化以 ${String(reason.kind)} 结束。` }
+  return { code: `turn_${String(reason.kind)}`, message: `The automation ended with reason ${String(reason.kind)}.` }
 }
 
 export async function executeAutomationRun(
@@ -166,15 +189,15 @@ export async function executeAutomationRun(
   config: ExecutorConfig,
 ): Promise<RunCompletion> {
   if (config.signal?.aborted === true) {
-    return { status: 'cancelled', error: { code: 'cancelled', message: '自动化在启动前已被取消。' } }
+    return { status: 'cancelled', error: { code: 'cancelled', message: 'The automation was cancelled before it started.' } }
   }
   const target = run.targetSnapshot
   const workspace = ctx.workspaceRegistry.get(WorkspaceId(target.workspaceId))
   if (workspace === undefined) {
-    return { status: 'failed', error: { code: 'workspace_not_found', message: '目标工作区已不存在。' } }
+    return { status: 'failed', error: { code: 'workspace_not_found', message: 'The target workspace no longer exists.' } }
   }
   if (await workspace.status() !== 'ok' || workspace.path !== target.cwd) {
-    return { status: 'failed', error: { code: 'workspace_unavailable', message: '目标工作区目录不可用或已变更。' } }
+    return { status: 'failed', error: { code: 'workspace_unavailable', message: 'The target workspace directory is unavailable or has changed.' } }
   }
 
   const fallbackSelection = ctx.agentDefaultModel.currentSelection()
@@ -186,9 +209,11 @@ export async function executeAutomationRun(
       }
     : fallbackSelection
   const sessionId = SessionId(config.sessionId)
-  let handle: Awaited<ReturnType<Context['agents']['create']>> | undefined
+  let handle: AgentHandle | undefined
   let timeout: ReturnType<typeof setTimeout> | undefined
   let removeCancellationListener = () => {}
+  let removeToolGuard: (() => void) | undefined
+  let handedOff = false
   try {
     handle = await ctx.agents.withoutInitiator(() => ctx.agents.create({
       sessionId,
@@ -201,7 +226,7 @@ export async function executeAutomationRun(
         const agent = agentCtx.agent
         if (agent === undefined) throw new Error('automation setup has no scoped Agent')
         applyUnattendedPermission(ctx.permissionPresets, agent.session, target.permissionPreset)
-        agentCtx.tools.guard((exec: ToolExecution) => unattendedToolGuardReason(exec.name, exec.arguments))
+        removeToolGuard = agentCtx.tools.guard((exec: ToolExecution) => unattendedToolGuardReason(exec.name, exec.arguments))
       },
     }))
     await handle.agent.whenIdle()
@@ -249,7 +274,7 @@ export async function executeAutomationRun(
         status: aborted ? 'cancelled' : 'failed',
         error: {
           code: 'cancel_convergence_timeout',
-          message: '自动化取消后未能在安全时限内停止。',
+          message: 'The automation did not stop within the safety deadline after cancellation.',
         },
       }
     }
@@ -257,44 +282,49 @@ export async function executeAutomationRun(
     await ctx.sessions.flush(handle.agent.session)
     const outcome = summarizeRun(handle.agent.session.events, firstSeq)
     const summary = boundSummary(outcome.text)
-    if (aborted) {
-      return {
-        sessionId: String(sessionId),
-        status: 'cancelled',
-        ...(summary === undefined ? {} : { summary }),
-        error: { code: 'cancelled', message: '自动化因其所属服务停止而被取消。' },
-      }
+    const completion: RunCompletion = aborted
+      ? {
+          sessionId: String(sessionId),
+          status: 'cancelled',
+          ...(summary === undefined ? {} : { summary }),
+          error: { code: 'cancelled', message: 'The automation was cancelled because its owning service stopped.' },
+        }
+      : timedOut
+        ? {
+            sessionId: String(sessionId),
+            status: 'failed',
+            ...(summary === undefined ? {} : { summary }),
+            error: { code: 'timeout', message: 'The automation exceeded the maximum run time limit.' },
+          }
+        : outcome.reason?.kind === 'completed'
+          ? { sessionId: String(sessionId), status: 'succeeded', ...(summary === undefined ? {} : { summary }) }
+          : {
+              sessionId: String(sessionId),
+              status: 'failed',
+              ...(summary === undefined ? {} : { summary }),
+              error: reasonError(outcome.reason),
+            }
+    if (config.keepSessionOnCompletion === true && !aborted) {
+      // 交给服务保活的句柄必须在移交前转成交互语义；移交失败则走原 dispose 兜底。
+      convertRunAgentToInteractive(handle, removeToolGuard)
+      removeToolGuard = undefined
+      config.onHandleKept?.(String(sessionId), handle)
+      handedOff = true
     }
-    if (timedOut) {
-      return {
-        sessionId: String(sessionId),
-        status: 'failed',
-        ...(summary === undefined ? {} : { summary }),
-        error: { code: 'timeout', message: '自动化超过最大运行时限。' },
-      }
-    }
-    if (outcome.reason?.kind === 'completed') {
-      return { sessionId: String(sessionId), status: 'succeeded', ...(summary === undefined ? {} : { summary }) }
-    }
-    return {
-      sessionId: String(sessionId),
-      status: 'failed',
-      ...(summary === undefined ? {} : { summary }),
-      error: reasonError(outcome.reason),
-    }
+    return completion
   } catch (error: unknown) {
     return {
       ...(handle === undefined ? {} : { sessionId: String(sessionId) }),
       status: 'failed',
       error: {
         code: 'executor_error',
-        message: error instanceof Error ? error.message : '自动化执行器失败。',
+        message: error instanceof Error ? error.message : 'The automation executor failed.',
       },
     }
   } finally {
     removeCancellationListener()
     if (timeout !== undefined) clearTimeout(timeout)
-    if (handle !== undefined) {
+    if (handle !== undefined && !handedOff) {
       config.onHandleDisposed?.(String(sessionId))
       await settlesWithin(handle.dispose().catch(() => {}), CANCEL_CONVERGENCE_TIMEOUT_MS)
     }

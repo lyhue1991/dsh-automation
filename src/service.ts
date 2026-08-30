@@ -44,6 +44,8 @@ export interface AutomationConfig {
   readonly runTimeoutMs: number
   readonly misfireGraceMs: number
   readonly historyLimit: number
+  /** 终态后保活为交互会话的自动化 Agent 数上限；0 表示跑完立即释放。 */
+  readonly liveSessionLimit: number
 }
 
 export interface WorkspaceOption {
@@ -131,13 +133,15 @@ function toIso(ms = Date.now()): string {
 }
 
 function throwIfCancelled(signal?: AbortSignal): void {
-  if (signal?.aborted === true) throw new AutomationRequestError('自动化请求已取消。')
+  if (signal?.aborted === true) throw new AutomationRequestError('The automation request was cancelled.')
 }
 
 function compareRuns(left: AutomationRun, right: AutomationRun): number {
   return Date.parse(right.scheduledFor) - Date.parse(left.scheduledFor)
     || right.id.localeCompare(left.id)
 }
+
+type AutomationAgentHandle = Awaited<ReturnType<Context['agents']['create']>>
 
 export class AutomationService {
   private definitions!: KvTable<string, AutomationDefinition>
@@ -157,6 +161,8 @@ export class AutomationService {
   } | undefined
   private readonly active = new Map<string, { readonly abort: AbortController; readonly promise: Promise<void> }>()
   private readonly resumed = new Map<string, Awaited<ReturnType<Context['agents']['resume']>>>()
+  /** 跑完后保活的交互会话句柄，按完成顺序插入，供驱逐、删除与关闭统一释放。 */
+  private readonly kept = new Map<string, AutomationAgentHandle>()
   private readonly releasedSessionEvents = new Set<string>()
 
   private constructor(
@@ -227,7 +233,7 @@ export class AutomationService {
   defaultPermission(): string {
     const presets = this.permissionPresets()
     const value = normalizePermissionPreset(presets.defaultPreset, presets.names)
-    if (value === undefined) throw new Error('Host 的默认权限预设不在官方权限列表中。')
+    if (value === undefined) throw new Error('The Host default permission preset is not in the official preset list.')
     return value
   }
 
@@ -238,13 +244,16 @@ export class AutomationService {
     const handles = [...this.active.values()]
     for (const handle of handles) handle.abort.abort()
     const resumed = [...this.resumed.values()]
+    const kept = [...this.kept.values()]
     await Promise.allSettled([
       pendingOperations,
       ...handles.map(handle => handle.promise),
       ...resumed.map(handle => handle.dispose()),
+      ...kept.map(handle => handle.dispose()),
     ])
     this.active.clear()
     this.resumed.clear()
+    this.kept.clear()
     this.releasedSessionEvents.clear()
     await this.domain.close()
     await this.resumeOwnerDispose?.().catch(() => undefined)
@@ -298,7 +307,7 @@ export class AutomationService {
       try {
         if (request.schedule.kind === 'once'
           && nextOccurrence(request.schedule, now) === null) {
-          throw new AutomationRequestError('一次性自动化必须安排在未来时间。')
+          throw new AutomationRequestError('One-shot automations must be scheduled at a future time.')
         }
       } catch (error) {
         if (error instanceof AutomationRequestError) throw error
@@ -355,7 +364,7 @@ export class AutomationService {
           && JSON.stringify(normalizeSchedule(fields.schedule)) !== JSON.stringify(current.schedule)
         if (scheduleChanged && fields.schedule?.kind === 'once'
           && nextOccurrence(fields.schedule, now) === null) {
-          throw new AutomationRequestError('一次性自动化必须安排在未来时间。')
+          throw new AutomationRequestError('One-shot automations must be scheduled at a future time.')
         }
       } catch (error) {
         if (error instanceof AutomationRequestError) throw error
@@ -409,7 +418,7 @@ export class AutomationService {
         candidate.automationId === id
         && (candidate.status === 'queued' || candidate.status === 'running')
       ))
-      if (alreadyActive) throw new AutomationRequestError('该自动化已有排队或运行中的任务。')
+      if (alreadyActive) throw new AutomationRequestError('This automation already has a queued or running task.')
       const value = createManualRun(definition, toIso())
       await this.runs.put(value.id, value)
       return value
@@ -426,7 +435,7 @@ export class AutomationService {
       if (scope.hostWide !== true) {
         const { workspace } = await this.resolveScope(scope)
         if (run.targetSnapshot.workspaceId !== workspace.id) {
-          throw new AutomationRequestError('该运行记录属于其他工作区。')
+          throw new AutomationRequestError('This run record belongs to a different workspace.')
         }
       }
       return this.runs.update(runId, current => current.unread ? { ...current, unread: false } : current)
@@ -444,6 +453,11 @@ export class AutomationService {
       if (resumed !== undefined) {
         this.resumed.delete(id)
         await resumed.dispose().catch(() => undefined)
+      }
+      const kept = this.kept.get(id)
+      if (kept !== undefined) {
+        this.kept.delete(id)
+        await kept.dispose().catch(() => undefined)
       }
       // AgentHandle.dispose removes the live session but leaves its durable log.
       // Do not mistake that lifecycle event for user deletion.
@@ -468,7 +482,7 @@ export class AutomationService {
       const run = [...this.runs.entries()]
         .map(([, item]) => item)
         .find(item => item.sessionId === id)
-      if (run === undefined) throw new AutomationRequestError('该定时会话没有可恢复的运行记录。')
+      if (run === undefined) throw new AutomationRequestError('This scheduled session has no resumable run record.')
       let handle: Awaited<ReturnType<Context['agents']['resume']>>
       try {
         handle = await resumeAutomationSession(this.ctx, run.targetSnapshot, id, this.resumeOwnerCtx)
@@ -564,7 +578,7 @@ export class AutomationService {
     if (byId === undefined || byPath === undefined
       || String(byId.id) !== String(byPath.id)
       || String(byId.path) !== String(byPath.path)) {
-      throw new AutomationRequestError('更新后的工作区必须是同一个已注册目录。')
+      throw new AutomationRequestError('The updated workspace must resolve to the same registered directory.')
     }
     return { id: String(byId.id), path: String(byId.path) }
   }
@@ -636,10 +650,10 @@ export class AutomationService {
         || String(byId.id) !== String(byPath.id)
         || String(byId.path) !== String(byPath.path)
       )) {
-        throw new AutomationRequestError('创建任务的工作区 ID 和目录必须指向同一个已注册目录。')
+        throw new AutomationRequestError('The workspace ID and directory must resolve to the same registered directory.')
       }
       const workspace = byId ?? byPath
-      if (workspace === undefined) throw new AutomationRequestError('所选工作区不存在或目录未注册。')
+      if (workspace === undefined) throw new AutomationRequestError('The selected workspace does not exist or its directory is not registered.')
       workspaceId = String(workspace.id)
       cwd = String(workspace.path)
     } else {
@@ -658,13 +672,13 @@ export class AutomationService {
 
   private async resolveScope(scope: AutomationScope) {
     const agent = this.ctx.agents.get(SessionId(scope.sessionId))
-    if (agent === undefined) throw new AutomationRequestError('自动化界面或工具需要一个存活的来源 Session。')
+    if (agent === undefined) throw new AutomationRequestError('The automation UI or tools require a live source Session.')
     const cwd = agent.session.header.cwd
-    if (cwd === undefined) throw new AutomationRequestError('来源 Session 没有工作区目录。')
+    if (cwd === undefined) throw new AutomationRequestError('The source Session has no workspace directory.')
     const workspace = await this.ctx.workspaceRegistry.resolveByPath(cwd)
-    if (workspace === undefined) throw new AutomationRequestError('来源 Session 目录尚未注册为 DSH 工作区。')
+    if (workspace === undefined) throw new AutomationRequestError('The source Session directory is not registered as a DSH workspace.')
     if (this.ctx.agents.get(SessionId(scope.sessionId)) !== agent) {
-      throw new AutomationRequestError('自动化界面或工具需要一个存活的来源 Session。')
+      throw new AutomationRequestError('The automation UI or tools require a live source Session.')
     }
     return { agent, workspace }
   }
@@ -674,7 +688,7 @@ export class AutomationService {
     if (definition === undefined) throw new AutomationRequestError(`unknown automation '${id}'`)
     if (scope.hostWide === true) return definition
     const { workspace } = await this.resolveScope(scope)
-    if (definition.workspaceId !== workspace.id) throw new AutomationRequestError('该自动化属于其他工作区。')
+    if (definition.workspaceId !== workspace.id) throw new AutomationRequestError('This automation belongs to a different workspace.')
     return definition
   }
 
@@ -734,8 +748,8 @@ export class AutomationService {
     if (this.runs.get(candidate.id) !== undefined) return
     if (overlapping || age > this.config.misfireGraceMs) {
       const reason = overlapping
-        ? { code: 'overlap', message: '上一次运行仍在进行，本次已跳过。' }
-        : { code: 'misfire', message: 'Host 恢复时已超出补跑窗口，本次已跳过。' }
+        ? { code: 'overlap', message: 'Skipped because the previous run is still in progress.' }
+        : { code: 'misfire', message: 'Skipped because the Host recovered after the misfire grace window.' }
       await this.runs.put(candidate.id, {
         ...candidate,
         status: 'skipped',
@@ -803,7 +817,7 @@ export class AutomationService {
         ...run,
         status: 'failed',
         finishedAt: toIso(),
-        error: { code: 'definition_deleted', message: '自动化定义在本次运行启动前已被删除。' },
+        error: { code: 'definition_deleted', message: 'The automation definition was deleted before this run started.' },
       })
       await this.pruneWorkspaceHistory(run.targetSnapshot.workspaceId)
       return
@@ -817,6 +831,11 @@ export class AutomationService {
       sessionId,
       signal,
       onHandleDisposed: (id) => { this.releasedSessionEvents.add(id) },
+      keepSessionOnCompletion: this.config.liveSessionLimit > 0,
+      onHandleKept: (id, handle) => {
+        this.kept.set(id, handle)
+        this.evictKeptSessions()
+      },
     })
     const finishedAt = toIso()
     const boundSessionId = completion.sessionId ?? running.sessionId
@@ -833,6 +852,25 @@ export class AutomationService {
       await this.adoptSession(boundSessionId).catch(() => undefined)
     }
     await this.pruneWorkspaceHistory(run.targetSnapshot.workspaceId)
+  }
+
+  /** 超出保留上限时回收最旧的已完结自动化 Agent；正在执行用户回合的会话跳过。 */
+  private evictKeptSessions(): void {
+    const limit = Math.max(0, this.config.liveSessionLimit)
+    for (const [id, handle] of this.kept) {
+      if (this.kept.size <= limit) return
+      if (handle.agent.status === 'running') continue
+      this.kept.delete(id)
+      this.releaseKeptSession(id, handle)
+    }
+  }
+
+  /** 回收仍然存活的会话：登记释放标记，避免 dispose 事件被当成用户删除。 */
+  private releaseKeptSession(id: string, handle: AutomationAgentHandle): void {
+    this.releasedSessionEvents.add(id)
+    void handle.dispose().catch((error: unknown) => {
+      this.ctx.logger.warn(`dsh-automation: failed to release kept session '${id}': ${asMessage(error)}`)
+    })
   }
 
   private armNextTimer(now: string): void {
@@ -869,8 +907,8 @@ export class AutomationService {
   }
 
   private serialize<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-    if (this.stopping) return Promise.reject(new Error('自动化服务正在停止。'))
-    if (signal?.aborted === true) return Promise.reject(new Error('自动化请求已取消。'))
+    if (this.stopping) return Promise.reject(new Error('The automation service is shutting down.'))
+    if (signal?.aborted === true) return Promise.reject(new Error('The automation request was cancelled.'))
     const result = this.operationTail.then(async () => {
       throwIfCancelled(signal)
       return operation()
@@ -920,7 +958,7 @@ export class AutomationService {
         finishedAt,
         error: {
           code: 'host_interrupted',
-          message: 'DSH Host 在本次运行到达终态前停止。',
+          message: 'The DSH Host stopped before this run reached a terminal state.',
         },
         unread: true,
       })

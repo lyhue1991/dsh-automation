@@ -19,6 +19,7 @@ export interface Config {
   readonly runTimeoutMinutes?: number
   readonly misfireGraceMinutes?: number
   readonly historyLimit?: number
+  readonly liveSessionLimit?: number
 }
 
 export const Config = z.object({
@@ -26,6 +27,7 @@ export const Config = z.object({
   runTimeoutMinutes: z.number().step(1).min(1).max(1_440).default(60),
   misfireGraceMinutes: z.number().step(1).min(0).max(10_080).default(15),
   historyLimit: z.number().step(1).min(1).max(5_000).default(200),
+  liveSessionLimit: z.number().step(1).min(0).max(1_000).default(20),
 })
 
 const MUTATING_TOOLS = new Set([
@@ -72,8 +74,8 @@ export function needsHumanApproval(
 export function humanApprovalReason(toolName: string, args?: unknown): string {
   const action = typeof args === 'object' && args !== null ? (args as Record<string, unknown>).action : undefined
   return toolName === 'automation_manage' && action === 'delete'
-    ? '此操作会永久删除自动化定义。运行历史会保留，但计划无法自动恢复。'
-    : '此操作会创建或扩大无人值守的未来工作。请核对任务说明、计划、工作区和权限边界。'
+    ? 'This permanently deletes the automation definition. Run history is kept, but the schedule cannot be restored automatically.'
+    : 'This creates or expands unattended future work. Review the task prompt, schedule, workspace, and permission boundary before approving.'
 }
 
 export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
@@ -85,6 +87,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
       runTimeoutMs: config.runTimeoutMinutes * 60_000,
       misfireGraceMs: config.misfireGraceMinutes * 60_000,
       historyLimit: config.historyLimit,
+      liveSessionLimit: config.liveSessionLimit,
     })
     const agentTools = new Map<object, () => void | Promise<void>>()
     let cleaned = false

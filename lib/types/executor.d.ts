@@ -24,11 +24,22 @@ export interface ExecutorConfig {
     readonly sessionId: string;
     readonly signal?: AbortSignal;
     readonly onHandleDisposed?: (sessionId: string) => void;
+    /**
+     * 终态后不 dispose，把 Agent 转成交互会话并通过 onHandleKept 移交调用方持有。
+     * Web 客户端把 session/disposed 视为页面生命周期内的永久下线（removed 标记
+     * 不复位），dispose 会让刚跑完的会话立刻变成“会话不可用”，只能刷新恢复。
+     * 服务停止（signal abort）时仍由执行器自行清理，不走该路径。
+     */
+    readonly keepSessionOnCompletion?: boolean;
+    readonly onHandleKept?: (sessionId: string, handle: AgentHandle) => void;
 }
+type AgentHandle = Awaited<ReturnType<Context['agents']['create']>>;
 /** 从持久化日志恢复一个已完成的自动化会话，供用户继续交互。 */
 export declare function resumeAutomationSession(ctx: Context, target: AutomationRun['targetSnapshot'], sessionId: string, ownerCtx?: Context): Promise<Awaited<ReturnType<Context['agents']['resume']>>>;
 /** 先应用官方预设的完整语义，再让无人值守审批 fail-closed。 */
 export declare function applyUnattendedPermission(presets: PermissionPresetService, session: unknown, permission: AutomationDefinition['permissionPreset']): void;
+/** 运行结束后解除无人值守限制，让该 Agent 可以继续被用户交互。 */
+export declare function convertRunAgentToInteractive(handle: Pick<AgentHandle, 'agent'>, removeToolGuard: (() => void) | undefined): void;
 export declare function summarizeRun(events: readonly SessionEventLike[], firstSeq: number): {
     readonly text: string;
     readonly reason?: Record<string, any>;

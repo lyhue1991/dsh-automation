@@ -2,6 +2,10 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+- Keep a finished run's session alive as an interactive session (`liveSessionLimit`, default 20) instead of disposing it right away, so the Web composer no longer turns into "Session unavailable" until a restart. The kept Agent has its unattended tool guard lifted and approval policy restored to `ask`; eviction skips sessions running a user turn, and `forgetSession` or service shutdown still releases them. Set `liveSessionLimit: 0` to restore the old dispose-immediately behavior.
+
 ## 0.1.0 — 2026-08-29
 
 Initial release under the `@lyhue1991/dsh-automation` package scope.

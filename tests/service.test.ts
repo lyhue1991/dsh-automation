@@ -40,6 +40,7 @@ function config(overrides: Partial<AutomationConfig> = {}): AutomationConfig {
     runTimeoutMs: 60_000,
     misfireGraceMs: 15 * 60_000,
     historyLimit: 3,
+    liveSessionLimit: 2,
     ...overrides,
   }
 }
@@ -167,7 +168,7 @@ test('创建和立即运行都限制在来源工作区', async () => {
   assert.equal(run.trigger, 'manual')
   await assert.rejects(
     () => service.runNow({ sessionId: 'session_1', creatorKind: 'web' }, created.id),
-    /已有排队/,
+    /queued or running/,
   )
 })
 
@@ -219,7 +220,7 @@ test('编辑已到期 once 的非计划字段时允许保留原时间', async ()
     { sessionId: 'session_1', creatorKind: 'web', hostWide: true },
     definition.id,
     { schedule: { kind: 'once', at: '2026-08-17T01:00:00.000Z', timeZone: 'UTC' } },
-  ), /必须安排在未来/)
+  ), /must be scheduled at a future time/)
 })
 
 test('更新工作区时必须由 id 和路径解析到同一个注册目录', async () => {
@@ -229,7 +230,7 @@ test('更新工作区时必须由 id 和路径解析到同一个注册目录', a
     { sessionId: 'session_1', creatorKind: 'web', hostWide: true },
     definition.id,
     { workspaceId: 'ws_1', cwd: 'D:\\other' },
-  ), /同一个已注册目录/)
+  ), /same registered directory/)
 })
 
 test('创建工作区时 id 和路径也必须解析到同一个注册目录', async () => {
@@ -244,12 +245,12 @@ test('创建工作区时 id 和路径也必须解析到同一个注册目录', a
     ...request,
     workspaceId: 'missing',
     cwd: 'D:\\work\\demo',
-  }), /同一个已注册目录/)
+  }), /same registered directory/)
   await assert.rejects(() => service.create(scope, {
     ...request,
     workspaceId: 'ws_1',
     cwd: 'D:\\other',
-  }), /同一个已注册目录/)
+  }), /same registered directory/)
   const byId = await service.create(scope, { ...request, name: '仅 ID', workspaceId: 'ws_1' })
   const byPath = await service.create(scope, { ...request, name: '仅目录', cwd: 'D:\\work\\demo' })
   assert.equal(byId.workspaceId, 'ws_1')
@@ -595,4 +596,82 @@ test('启动时对宿主已不存在的 Session 摘掉 run.sessionId', async () 
   const ghost = runs.get('run_ghost')
   assert.equal(ghost?.status, 'succeeded')
   assert.equal(ghost?.sessionId, null)
+})
+
+test('forgetSession 释放保活句柄并摘掉运行记录的 sessionId', async () => {
+  const definition = sampleDefinition()
+  const run: AutomationRun = {
+    version: 1,
+    id: 'run_kept',
+    automationId: definition.id,
+    definitionRevision: 1,
+    occurrenceKey: 'kept',
+    trigger: 'schedule',
+    scheduledFor: '2026-08-16T00:30:00.000Z',
+    status: 'succeeded',
+    promptSnapshot: definition.prompt,
+    targetSnapshot: {
+      workspaceId: definition.workspaceId,
+      cwd: definition.cwd,
+      agentPreset: definition.agentPreset,
+      provider: 'deepseek',
+      model: 'v4',
+      permissionPreset: 'read-only',
+    },
+    sessionId: 'kept-session',
+    startedAt: '2026-08-16T00:30:00.000Z',
+    finishedAt: '2026-08-16T00:31:00.000Z',
+    summary: 'ok',
+    error: null,
+    unread: false,
+  }
+  const { service } = await makeService({ definitions: [definition], runs: [run] })
+  let disposed = 0
+  const kept = (service as unknown as { kept: Map<string, unknown> }).kept
+  kept.set('kept-session', {
+    agent: { status: 'idle', session: { header: { cwd: definition.cwd } } },
+    async dispose() { disposed += 1 },
+  })
+  await service.forgetSession('kept-session')
+  assert.equal(disposed, 1)
+  assert.equal(kept.has('kept-session'), false)
+  await service.dispose()
+})
+
+test('超出 liveSessionLimit 时按完成顺序回收保活会话并跳过运行中的会话', async () => {
+  const { service } = await makeService({}, { liveSessionLimit: 2 })
+  const disposed: string[] = []
+  const makeHandle = (id: string, status: 'idle' | 'running') => ({
+    agent: { status, session: { header: { cwd: 'D:\\work\\demo' } } },
+    async dispose() { disposed.push(id) },
+  })
+  const internals = service as unknown as {
+    kept: Map<string, ReturnType<typeof makeHandle>>
+    releasedSessionEvents: Set<string>
+    evictKeptSessions(): void
+  }
+  internals.kept.set('s1', makeHandle('s1', 'idle'))
+  internals.kept.set('s2', makeHandle('s2', 'idle'))
+  internals.kept.set('s3', makeHandle('s3', 'running'))
+  internals.kept.set('s4', makeHandle('s4', 'idle'))
+  internals.evictKeptSessions()
+  // running 的 s3 不能被驱逐；从 4 个收到上限 2 个必须依次回收 s1、s2。
+  assert.deepEqual(disposed, ['s1', 's2'])
+  assert.deepEqual([...internals.kept.keys()], ['s3', 's4'])
+  assert.equal(internals.releasedSessionEvents.has('s1'), true)
+  assert.equal(internals.releasedSessionEvents.has('s2'), true)
+  await service.dispose()
+  // 服务关闭兜底释放剩余保活句柄。
+  assert.equal(internals.kept.size, 0)
+  assert.deepEqual(disposed.sort(), ['s1', 's2', 's3', 's4'])
+})
+
+test('保活会话对 resumeSession 是即席可用的（不再重复 resume）', async () => {
+  const { service } = await makeService()
+  const liveAgent = { session: { header: { cwd: 'D:\\work\\demo' } } }
+  const agents = { get: (id: unknown) => String(id) === 'kept-live' ? liveAgent : undefined }
+  const serviceWithAgents = service as unknown as { readonly ctx: { agents: unknown } }
+  ;(serviceWithAgents.ctx as { agents: unknown }).agents = agents
+  assert.equal(await service.resumeSession('kept-live'), true)
+  await service.dispose()
 })

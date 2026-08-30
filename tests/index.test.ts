@@ -29,7 +29,7 @@ test('Read Only / Workspace Write 的 ask 策略会走官方授权', () => {
     signal,
   }, true, 'ask'), true)
   assert.equal(needsHumanApproval({ name: 'automation_get', signal }, true, 'ask'), false)
-  assert.match(humanApprovalReason('automation_manage', { action: 'delete' }), /删除自动化定义/)
+  assert.match(humanApprovalReason('automation_manage', { action: 'delete' }), /permanently deletes the automation definition/)
 })
 
 test('会话策略优先读 override，否则回退配置默认值', () => {

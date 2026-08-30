@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## Unreleased
+
+- 任务跑完后不再立刻 dispose 会话，而是把 Agent 转成交互会话保活（`liveSessionLimit`，默认 20）。此前 dispose 会向 Web 客户端推送 `session-removed`，而客户端把该会话标记为永久下线（「会话不可用」，只有重启/刷新才能恢复）。保活的 Agent 会解除无人值守工具 guard 并把审批策略恢复为 `ask`；驱逐时跳过正在执行用户回合的会话，删除会话与服务关闭仍会正常释放。设为 `0` 可回到跑完立即释放的旧行为。
+
 ## 0.1.0 — 2026-08-29
 
 `@lyhue1991/dsh-automation` 包名下的首个版本。

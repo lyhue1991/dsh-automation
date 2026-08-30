@@ -7,3 +7,4 @@
         runTimeoutMinutes: 60
         misfireGraceMinutes: 15
         historyLimit: 200
+        liveSessionLimit: 20

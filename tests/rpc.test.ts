@@ -24,7 +24,7 @@ test('工具注册收敛为三个管理入口，并校验计划字段组合', ()
   assert.deepEqual(names, [
     'automation_create', 'automation_get', 'automation_manage',
   ])
-  assert.match(descriptions.get('automation_create') ?? '', /定时任务/)
+  assert.match(descriptions.get('automation_create') ?? '', /scheduled task/)
   assert.deepEqual(definitions.get('automation_create')?.parameters?.permission?.enum, [
     'read-only', 'workspace-write',
   ])
@@ -123,7 +123,7 @@ test('RPC 限制任务字段长度并隐藏内部异常文案', async () => {
     },
   }, signal)
   assert.equal(internal.error.code, 'internal')
-  assert.equal(internal.error.message, '自动化服务暂时无法完成请求。')
+  assert.equal(internal.error.message, 'The automation service could not complete the request.')
   assert.equal(warnings.length, 1)
   assert.match(warnings[0] ?? '', /RPC 'create' failed:.*storage path C:\\secret\\domain\.db/s)
 })

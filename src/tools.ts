@@ -69,7 +69,7 @@ function present(title: string, kind: 'read' | 'other', rawInput?: unknown) {
 function validateScheduleSelector(args: ScheduleArgs): void {
   const presentFields = SCHEDULE_FIELDS.filter(field => args[field] !== undefined)
   if (args.kind === undefined) {
-    if (presentFields.length > 0) throw new Error('修改计划字段时必须提供 kind')
+    if (presentFields.length > 0) throw new Error('kind is required when changing schedule fields')
     return
   }
   const required = args.kind === 'once'
@@ -87,9 +87,9 @@ function validateScheduleSelector(args: ScheduleArgs): void {
               : ['time_zone', 'time'] as const
   const allowed = new Set<string>(required)
   const missing = required.filter(field => args[field] === undefined)
-  if (missing.length > 0) throw new Error(`${args.kind} 计划需要 ${missing.join(', ')}`)
+  if (missing.length > 0) throw new Error(`${args.kind} schedule requires: ${missing.join(', ')}`)
   const unrelated = presentFields.filter(field => !allowed.has(field))
-  if (unrelated.length > 0) throw new Error(`${args.kind} 计划不接受 ${unrelated.join(', ')}`)
+  if (unrelated.length > 0) throw new Error(`${args.kind} schedule does not accept: ${unrelated.join(', ')}`)
 }
 
 function scheduleFromArgs(args: ScheduleArgs, now: string): AutomationSchedule {
@@ -106,7 +106,7 @@ function scheduleFromArgs(args: ScheduleArgs, now: string): AutomationSchedule {
       return { kind: 'daily', time: String(args.time ?? ''), timeZone }
     case 'weekly': {
       const weekdays = Array.isArray(args.weekdays) ? args.weekdays.map(String) : []
-      if (weekdays.some(day => !WEEKDAYS.includes(day as Weekday))) throw new Error('weekdays 包含无效值')
+      if (weekdays.some(day => !WEEKDAYS.includes(day as Weekday))) throw new Error('weekdays contains invalid values')
       return { kind: 'weekly', weekdays: weekdays as Weekday[], time: String(args.time ?? ''), timeZone }
     }
     case 'monthly':
@@ -114,7 +114,7 @@ function scheduleFromArgs(args: ScheduleArgs, now: string): AutomationSchedule {
     case 'custom':
       return { kind: 'custom', everyDays: Number(args.every_days), time: String(args.time ?? ''), timeZone }
     default:
-      throw new Error('kind 必须是 once、interval、hourly、daily、weekly、monthly 或 custom')
+      throw new Error('kind must be one of: once, interval, hourly, daily, weekly, monthly, custom')
   }
 }
 
@@ -129,16 +129,16 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
       description: AUTOMATION_CREATE_DESCRIPTION,
       parameters: {
         name: { type: 'string', required: true },
-        prompt: { type: 'string', required: true, description: '每次独立运行都使用的自包含任务说明。' },
+        prompt: { type: 'string', required: true, description: 'Self-contained task instructions that each independent run can understand on its own.' },
         kind: { type: 'string', required: true, enum: ['once', 'interval', 'hourly', 'daily', 'weekly', 'monthly', 'custom'] },
-        time_zone: { type: 'string', required: true, description: 'IANA 时区，例如 Asia/Shanghai。' },
-        at: { type: 'string', description: '一次性计划的带偏移 ISO 时间。' },
-        every_minutes: { type: 'integer', description: '间隔计划的分钟数，最小 5。' },
-        minute: { type: 'integer', description: '每小时计划在第几分钟运行，范围 0-59。' },
-        time: { type: 'string', description: '每天、每周、每月或自定义计划的本地 HH:mm。' },
+        time_zone: { type: 'string', required: true, description: 'IANA time zone, e.g. Asia/Shanghai.' },
+        at: { type: 'string', description: 'ISO 8601 timestamp with UTC offset for one-shot schedules.' },
+        every_minutes: { type: 'integer', description: 'Run interval in minutes for interval schedules, minimum 5.' },
+        minute: { type: 'integer', description: 'Minute of the hour for hourly schedules, 0-59.' },
+        time: { type: 'string', description: 'Local wall-clock time HH:mm for daily, weekly, monthly, or custom schedules.' },
         weekdays: { type: 'array', items: { type: 'string', enum: WEEKDAYS } },
-        month_day: { type: 'integer', description: '每月计划在第几日运行，范围 1-31。' },
-        every_days: { type: 'integer', description: '自定义计划每隔几天运行，范围 1-365。' },
+        month_day: { type: 'integer', description: 'Day of month for monthly schedules, 1-31.' },
+        every_days: { type: 'integer', description: 'Run every N days for custom schedules, 1-365.' },
         permission: { type: 'string', enum: permissionNames },
       },
       output: JSON_OUTPUT,
@@ -157,16 +157,16 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
           return json({ ok: false, code: 'automation_error', message: error instanceof Error ? error.message : String(error) })
         }
       },
-      presentCall: (args: CreateArgs) => present('创建自动化', 'other', args.name),
+      presentCall: (args: CreateArgs) => present('Create automation', 'other', args.name),
     }))
 
     register(defineTool({
       name: 'automation_get',
-      description: '读取当前工作区的自动化任务。省略 id 返回任务摘要；指定 id 返回任务详情，可用 include_runs 读取该任务的运行历史。',
+      description: 'List scheduled automations in the current workspace. Omit id to get summaries; pass id for full details, optionally with include_runs to read its run history.',
       parameters: {
-        id: { type: 'string', description: '可选的自动化 ID。' },
-        include_runs: { type: 'boolean', description: '指定 id 时是否返回该任务的运行历史。' },
-        status: { type: 'string', description: '可选的运行状态过滤。' },
+        id: { type: 'string', description: 'Optional automation ID.' },
+        include_runs: { type: 'boolean', description: 'When id is given, also return its run history.' },
+        status: { type: 'string', description: 'Optional run status filter.' },
       },
       output: JSON_OUTPUT,
       async execute(args: GetArgs, exec: ToolRunContext) {
@@ -191,12 +191,12 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
           return json({ ok: false, code: 'automation_error', message: error instanceof Error ? error.message : String(error) })
         }
       },
-      presentCall: () => present('读取自动化', 'read'),
+      presentCall: () => present('List automations', 'read'),
     }))
 
     register(defineTool({
       name: 'automation_manage',
-      description: '管理当前工作区中已有的自动化。使用 action 执行 update、pause、resume、run_now 或 delete。',
+      description: 'Manage an existing automation in the current workspace. Use action to update, pause, resume, run now, or delete it.',
       parameters: {
         id: { type: 'string', required: true },
         action: { type: 'string', required: true, enum: ['update', 'pause', 'resume', 'run_now', 'delete'] },
@@ -236,7 +236,7 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
           if (args.status !== undefined) input.status = args.status
           if (args.permission !== undefined) input.permissionPreset = args.permission
           if (args.kind !== undefined) input.schedule = scheduleFromArgs(args, new Date().toISOString())
-          if (Object.keys(input).length === 0) throw new Error('automation_manage 的 update 至少需要一个变更字段')
+          if (Object.keys(input).length === 0) throw new Error('automation_manage update requires at least one field to change')
           const value = await service.update(scope, args.id, input, exec.signal)
           return json({ ok: true, automation: value })
         } catch (error: unknown) {
@@ -244,7 +244,7 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
           return json({ ok: false, code: 'automation_error', message: error instanceof Error ? error.message : String(error) })
         }
       },
-      presentCall: (args: ManageArgs) => present('管理自动化', 'other', args.id),
+      presentCall: (args: ManageArgs) => present('Manage automation', 'other', args.id),
     }))
   } catch (error) {
     for (const dispose of disposers.reverse()) dispose()

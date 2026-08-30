@@ -8,6 +8,8 @@ export interface AutomationConfig {
     readonly runTimeoutMs: number;
     readonly misfireGraceMs: number;
     readonly historyLimit: number;
+    /** 终态后保活为交互会话的自动化 Agent 数上限；0 表示跑完立即释放。 */
+    readonly liveSessionLimit: number;
 }
 export interface WorkspaceOption {
     readonly id: string;
@@ -96,6 +98,8 @@ export declare class AutomationService {
     private optionCatalogCache;
     private readonly active;
     private readonly resumed;
+    /** 跑完后保活的交互会话句柄，按完成顺序插入，供驱逐、删除与关闭统一释放。 */
+    private readonly kept;
     private readonly releasedSessionEvents;
     private constructor();
     static open(ctx: Context, config: AutomationConfig): Promise<AutomationService>;
@@ -134,6 +138,10 @@ export declare class AutomationService {
     private startQueuedRuns;
     private startRun;
     private executeRun;
+    /** 超出保留上限时回收最旧的已完结自动化 Agent；正在执行用户回合的会话跳过。 */
+    private evictKeptSessions;
+    /** 回收仍然存活的会话：登记释放标记，避免 dispose 事件被当成用户删除。 */
+    private releaseKeptSession;
     private armNextTimer;
     private armRetryTimer;
     private clearTimer;
