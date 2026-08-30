@@ -2,9 +2,10 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
-## Unreleased
+## 0.2.0 — 2026-08-31
 
 - Keep a finished run's session alive as an interactive session (`liveSessionLimit`, default 20) instead of disposing it right away, so the Web composer no longer turns into "Session unavailable" until a restart. The kept Agent has its unattended tool guard lifted and approval policy restored to `ask`; eviction skips sessions running a user turn, and `forgetSession` or service shutdown still releases them. Set `liveSessionLimit: 0` to restore the old dispose-immediately behavior.
+- Convert host/tool-facing strings to English: `automation_*` tool and parameter descriptions, the `tool:automation` prompt section, unattended tool-guard reasons, approval reasons, and service/executor/rpc error messages. Web UI strings remain locale-driven in `src/client`.
 
 ## 0.1.0 — 2026-08-29
 

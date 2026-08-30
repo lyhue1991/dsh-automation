@@ -2,9 +2,10 @@
 
 [English](CHANGELOG.md)
 
-## Unreleased
+## 0.2.0 — 2026-08-31
 
 - 任务跑完后不再立刻 dispose 会话，而是把 Agent 转成交互会话保活（`liveSessionLimit`，默认 20）。此前 dispose 会向 Web 客户端推送 `session-removed`，而客户端把该会话标记为永久下线（「会话不可用」，只有重启/刷新才能恢复）。保活的 Agent 会解除无人值守工具 guard 并把审批策略恢复为 `ask`；驱逐时跳过正在执行用户回合的会话，删除会话与服务关闭仍会正常释放。设为 `0` 可回到跑完立即释放的旧行为。
+- Host 侧面向模型的文案统一改为英文：`automation_*` 工具与参数描述、`tool:automation` 系统提示词段、无人值守工具守卫拒绝原因、审批确认理由，以及 service/executor/rpc 错误信息。Web UI 文案仍由 `src/client` 的 zh/en locale 体系提供。
 
 ## 0.1.0 — 2026-08-29
 
