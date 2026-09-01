@@ -2,6 +2,11 @@
 
 [English](CHANGELOG.md)
 
+## 0.3.0 — 2026-09-01
+
+- 定时任务支持选择 Agent preset。Web 创建/编辑表单与 Agent 创建/更新 API 现在会展示 Host presets、持久化所选 preset，并按当前可用列表校验。
+- 扩充无人值守工具白名单，加入更多 Host/PI 工具，包括 `bash_io`、`find`、`ls` 和目标跟踪工具。
+
 ## 0.2.0 — 2026-08-31
 
 - 任务跑完后不再立刻 dispose 会话，而是把 Agent 转成交互会话保活（`liveSessionLimit`，默认 20）。此前 dispose 会向 Web 客户端推送 `session-removed`，而客户端把该会话标记为永久下线（「会话不可用」，只有重启/刷新才能恢复）。保活的 Agent 会解除无人值守工具 guard 并把审批策略恢复为 `ask`；驱逐时跳过正在执行用户回合的会话，删除会话与服务关闭仍会正常释放。设为 `0` 可回到跑完立即释放的旧行为。
