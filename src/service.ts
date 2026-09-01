@@ -76,6 +76,13 @@ export interface ModelCatalogFailure {
   readonly message: string
 }
 
+export interface AgentPresetOption {
+  readonly id: string
+  readonly name: string
+  readonly description?: string
+  readonly broken?: string
+}
+
 export interface CreateRequest {
   readonly name: string
   readonly prompt: string
@@ -103,6 +110,8 @@ export interface AutomationSnapshot {
   readonly modelFailures: readonly ModelCatalogFailure[]
   readonly defaultModel: ModelOption | null
   readonly skills: readonly { readonly id: string; readonly name: string }[]
+  readonly presets: readonly AgentPresetOption[]
+  readonly defaultPreset: string
   readonly permissions: readonly PermissionOption[]
   readonly defaultPermission: string
   readonly definitions: readonly AutomationDefinitionView[]
@@ -286,6 +295,8 @@ export class AutomationService {
         modelFailures: options.modelFailures,
         defaultModel: options.defaultModel,
         skills: options.skills,
+        presets: options.presets,
+        defaultPreset: options.defaultPreset,
         permissions: this.permissionOptions(),
         defaultPermission: this.defaultPermission(),
         definitions: definitions.map(definition => ({
@@ -314,6 +325,7 @@ export class AutomationService {
         throw new AutomationRequestError(asMessage(error))
       }
       const target = await this.resolveCreateTarget(scope, request)
+      await this.requireAgentPreset(target.agentPreset)
       let value: AutomationDefinition
       try {
         value = createDefinition({
@@ -358,6 +370,9 @@ export class AutomationService {
       if (fields.workspaceId !== undefined || fields.cwd !== undefined) {
         const target = await this.resolveUpdateWorkspace(current, fields.workspaceId, fields.cwd)
         normalizedFields = { ...normalizedFields, workspaceId: target.id, cwd: target.path }
+      }
+      if (fields.agentPreset !== undefined) {
+        normalizedFields = { ...normalizedFields, agentPreset: await this.requireAgentPreset(fields.agentPreset) }
       }
       try {
         const scheduleChanged = fields.schedule !== undefined
@@ -589,6 +604,8 @@ export class AutomationService {
     readonly modelFailures: ModelCatalogFailure[]
     readonly defaultModel: ModelOption | null
     readonly skills: { readonly id: string; readonly name: string }[]
+    readonly presets: AgentPresetOption[]
+    readonly defaultPreset: string
   }> {
     const registry = this.ctx.workspaceRegistry as {
       list?: () => Iterable<any>
@@ -609,6 +626,17 @@ export class AutomationService {
         path: String(item.path ?? item.cwd ?? ''),
       }))
       .filter(item => item.id !== '' && item.path !== '')
+    const agentPresets = this.ctx.agentPresets as {
+      list?: () => Promise<readonly { id: string; name?: string; description?: string; broken?: string }[]>
+      defaultId?: string
+    }
+    const presets = (await agentPresets.list?.() ?? []).map(item => ({
+      id: String(item.id),
+      name: String(item.name ?? item.id),
+      ...(item.description === undefined ? {} : { description: String(item.description) }),
+      ...(item.broken === undefined ? {} : { broken: String(item.broken) }),
+    }))
+    const defaultPreset = String(agentPresets.defaultId ?? 'standard')
     const now = Date.now()
     let catalog = this.optionCatalogCache
     if (catalog === undefined || catalog.expiresAt <= now) {
@@ -628,6 +656,8 @@ export class AutomationService {
       modelFailures: catalog.modelFailures,
       defaultModel: catalog.defaultModel,
       skills: catalog.skills,
+      presets,
+      defaultPreset,
     }
   }
 
@@ -635,7 +665,8 @@ export class AutomationService {
     const fallback = this.ctx.agentDefaultModel?.currentSelection?.()
     let workspaceId = request.workspaceId?.trim() ?? ''
     let cwd = request.cwd?.trim() ?? ''
-    let agentPreset = request.agentPreset?.trim() || 'standard'
+    const configuredDefault = String((this.ctx.agentPresets as { defaultId?: string }).defaultId ?? 'standard')
+    let agentPreset = request.agentPreset?.trim() || configuredDefault
     let provider = request.provider ?? fallback?.provider ?? null
     let model = request.model ?? fallback?.model ?? null
     if (workspaceId !== '' || cwd !== '') {
@@ -660,9 +691,10 @@ export class AutomationService {
       const resolved = await this.resolveScope(scope)
       workspaceId = resolved.workspace.id
       cwd = resolved.workspace.path
-      agentPreset = this.ctx.agentPresets.composedPreset(resolved.agent.ctx)
-        ?? resolved.agent.session.header.agentPreset
-        ?? agentPreset
+      agentPreset = request.agentPreset?.trim()
+        || this.ctx.agentPresets.composedPreset(resolved.agent.ctx)
+        || resolved.agent.session.header.agentPreset
+        || agentPreset
       const loggedSelection = resolved.agent.session.requestHeader()?.config
       provider = request.provider ?? loggedSelection?.provider ?? provider
       model = request.model ?? loggedSelection?.model ?? model
@@ -927,6 +959,22 @@ export class AutomationService {
     const value = normalizePermissionPreset(input, presets.names)
     if (value === undefined) throw new AutomationRequestError(`unknown permission preset '${input}'`)
     return value
+  }
+
+  private async requireAgentPreset(input: string): Promise<string> {
+    const id = input.trim()
+    if (id === '') throw new AutomationRequestError('agent preset 不能为空')
+    const roster = this.ctx.agentPresets as {
+      resolve?: (presetId: string) => Promise<unknown>
+      list?: () => Promise<readonly { id: string }[]>
+    }
+    if (roster.resolve !== undefined) {
+      try { await roster.resolve(id) } catch (error) { throw new AutomationRequestError(`unknown agent preset '${id}': ${asMessage(error)}`) }
+    } else if (roster.list !== undefined) {
+      const found = (await roster.list()).some(item => item.id === id)
+      if (!found) throw new AutomationRequestError(`unknown agent preset '${id}'`)
+    }
+    return id
   }
 
   /** 把旧版 full-access 及已移除的预设收敛到 Host 当前可用列表。 */

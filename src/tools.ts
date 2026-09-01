@@ -32,6 +32,7 @@ interface CreateArgs extends ScheduleArgs {
   readonly kind: 'once' | 'interval' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom'
   readonly time_zone: string
   readonly permission?: PermissionPreset
+  readonly preset?: string
 }
 
 interface ManageArgs extends ScheduleArgs {
@@ -41,6 +42,7 @@ interface ManageArgs extends ScheduleArgs {
   readonly prompt?: string
   readonly status?: 'active' | 'paused'
   readonly permission?: PermissionPreset
+  readonly preset?: string
 }
 
 interface GetArgs { readonly id?: string; readonly include_runs?: boolean; readonly status?: string }
@@ -140,6 +142,7 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
         month_day: { type: 'integer', description: 'Day of month for monthly schedules, 1-31.' },
         every_days: { type: 'integer', description: 'Run every N days for custom schedules, 1-365.' },
         permission: { type: 'string', enum: permissionNames },
+        preset: { type: 'string', description: '可选 Agent preset ID；省略时使用 Host 默认 preset。' },
       },
       output: JSON_OUTPUT,
       async execute(args: CreateArgs, exec: ToolRunContext) {
@@ -150,6 +153,7 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
             prompt: args.prompt,
             schedule: scheduleFromArgs(args, new Date().toISOString()),
             ...(args.permission === undefined ? {} : { permissionPreset: args.permission }),
+            ...(args.preset === undefined ? {} : { agentPreset: args.preset }),
           }, exec.signal)
           return json({ ok: true, automation: value })
         } catch (error: unknown) {
@@ -213,6 +217,7 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
         month_day: { type: 'integer' },
         every_days: { type: 'integer' },
         permission: { type: 'string', enum: permissionNames },
+        preset: { type: 'string', description: '更新任务使用的 Agent preset ID。' },
       },
       output: JSON_OUTPUT,
       async execute(args: ManageArgs, exec: ToolRunContext) {
@@ -230,11 +235,13 @@ export function registerAutomationTools(service: AutomationService, agent: ToolA
             status?: 'active' | 'paused'
             schedule?: AutomationSchedule
             permissionPreset?: PermissionPreset
+            agentPreset?: string
           } = {}
           if (args.name !== undefined) input.name = String(args.name)
           if (args.prompt !== undefined) input.prompt = String(args.prompt)
           if (args.status !== undefined) input.status = args.status
           if (args.permission !== undefined) input.permissionPreset = args.permission
+          if (args.preset !== undefined) input.agentPreset = args.preset
           if (args.kind !== undefined) input.schedule = scheduleFromArgs(args, new Date().toISOString())
           if (Object.keys(input).length === 0) throw new Error('automation_manage update requires at least one field to change')
           const value = await service.update(scope, args.id, input, exec.signal)

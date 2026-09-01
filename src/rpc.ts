@@ -139,6 +139,8 @@ async function snapshotValue(service: AutomationService, payload: Record<string,
     modelFailures: snapshot.modelFailures,
     defaultModel: snapshot.defaultModel,
     skills: snapshot.skills,
+    presets: snapshot.presets,
+    defaultPreset: snapshot.defaultPreset,
     permissions: snapshot.permissions,
     defaultPermission: snapshot.defaultPermission,
     automations: snapshot.definitions.map(definition => ({
@@ -204,6 +206,7 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
             ...(input.provider === undefined ? {} : { provider: input.provider === null ? null : string(input.provider, 'input.provider') }),
             ...(input.model === undefined ? {} : { model: input.model === null ? null : string(input.model, 'input.model') }),
             ...(input.reasoningEffort === undefined ? {} : { reasoningEffort: input.reasoningEffort === null ? null : string(input.reasoningEffort, 'input.reasoningEffort') }),
+            ...(input.agentPreset === undefined ? {} : { agentPreset: string(input.agentPreset, 'input.agentPreset') }),
           }, signal)
           return { ok: true, value: { id: created.id } }
         }
@@ -235,6 +238,7 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
             ...(input.provider === undefined ? {} : { provider: input.provider === null ? null : string(input.provider, 'input.provider') }),
             ...(input.model === undefined ? {} : { model: input.model === null ? null : string(input.model, 'input.model') }),
             ...(input.reasoningEffort === undefined ? {} : { reasoningEffort: input.reasoningEffort === null ? null : string(input.reasoningEffort, 'input.reasoningEffort') }),
+            ...(input.agentPreset === undefined ? {} : { agentPreset: string(input.agentPreset, 'input.agentPreset') }),
           }, signal)
           return { ok: true, value: { id: value.id, revision: value.revision } }
         }
@@ -274,5 +278,4 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
     }
   }, { authority: 'loopback' })
 }
-
 

@@ -1,8 +1,8 @@
 import type { ModelTranslate, Translate } from './contracts.js';
-import type { ModelCatalogFailure, ModelOption, PermissionOption } from './protocol.js';
+import type { AgentPresetOption, ModelCatalogFailure, ModelOption, PermissionOption } from './protocol.js';
 import { type PermissionTranslate } from './permissions.js';
 import { type AutomationFormState } from './helpers.js';
-export declare function CreateModal({ t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, draft, editing, onClose, onSubmit, }: {
+export declare function CreateModal({ t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, presets, defaultPreset, draft, editing, onClose, onSubmit, }: {
     readonly t: Translate;
     readonly permissionT: PermissionTranslate;
     readonly modelT: ModelTranslate;
@@ -21,6 +21,8 @@ export declare function CreateModal({ t, permissionT, modelT, busy, workspaces, 
     }[];
     readonly permissions: readonly PermissionOption[];
     readonly defaultPermission: string;
+    readonly presets: readonly AgentPresetOption[];
+    readonly defaultPreset: string;
     readonly draft?: Partial<AutomationFormState>;
     readonly editing?: boolean;
     readonly onClose: () => void;

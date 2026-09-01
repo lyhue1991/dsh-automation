@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ModelTranslate, Translate } from './contracts.js'
-import type { ModelCatalogFailure, ModelOption, PermissionOption } from './protocol.js'
+import type { AgentPresetOption, ModelCatalogFailure, ModelOption, PermissionOption } from './protocol.js'
 import { permissionLabel, type PermissionTranslate } from './permissions.js'
 import {
   AutomationFormError,
@@ -22,7 +22,7 @@ const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2,
 const MINUTES = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'))
 
 export function CreateModal({
-  t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, draft, editing, onClose, onSubmit,
+  t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, presets, defaultPreset, draft, editing, onClose, onSubmit,
 }: {
   readonly t: Translate
   readonly permissionT: PermissionTranslate
@@ -35,12 +35,14 @@ export function CreateModal({
   readonly skills: readonly { id: string; name: string }[]
   readonly permissions: readonly PermissionOption[]
   readonly defaultPermission: string
+  readonly presets: readonly AgentPresetOption[]
+  readonly defaultPreset: string
   readonly draft?: Partial<AutomationFormState>
   readonly editing?: boolean
   readonly onClose: () => void
   readonly onSubmit: (form: AutomationFormState) => Promise<void>
 }): JSX.Element {
-  const [form, setForm] = useState<AutomationFormState>(() => ({ ...defaultFormState(new Date(), workspaces, defaultModel, defaultPermission), ...draft }))
+  const [form, setForm] = useState<AutomationFormState>(() => ({ ...defaultFormState(new Date(), workspaces, defaultModel, defaultPermission, defaultPreset), ...draft }))
   const [validationError, setValidationError] = useState<string>()
   const [confirmingPermission, setConfirmingPermission] = useState<string>()
   const [fullAccessAcknowledged, setFullAccessAcknowledged] = useState(false)
@@ -241,6 +243,13 @@ export function CreateModal({
                     icon: <ShieldIcon width={14} height={14} />,
                   }))}
                   onChange={choosePermission}
+                />
+                <MenuSelect
+                  pill
+                  up
+                  value={form.agentPreset}
+                  options={presets.filter(option => option.broken === undefined).map(option => ({ value: option.id, label: option.name }))}
+                  onChange={value => update({ agentPreset: value })}
                 />
               </div>
               <div className="dsh-st-composer-right">
@@ -503,7 +512,6 @@ function clampOnceAt(value: string): string {
   const offset = next.getTimezoneOffset() * 60_000
   return new Date(next.getTime() - offset).toISOString().slice(0, 16)
 }
-
 
 
 

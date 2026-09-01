@@ -315,6 +315,8 @@ export function AutomationView({ t, permissionT, modelT, runtime, closeSettings 
           skills={snapshot?.skills ?? []}
           permissions={permissions}
           defaultPermission={defaultPermission}
+          presets={snapshot?.presets ?? []}
+          defaultPreset={snapshot?.defaultPreset ?? 'standard'}
           editing={editingId !== undefined}
           {...(draft === undefined ? {} : { draft })}
           onClose={closeModal}
@@ -372,6 +374,8 @@ export function AutomationTaskEditor({ item, snapshot, t, permissionT, modelT, r
     skills={snapshot.skills ?? []}
     permissions={snapshot.permissions}
     defaultPermission={snapshot.defaultPermission}
+    presets={snapshot.presets ?? []}
+    defaultPreset={snapshot.defaultPreset ?? 'standard'}
     draft={draft}
     editing
     onClose={onClose}
@@ -409,6 +413,8 @@ export function AutomationTaskCreator({ snapshot, t, permissionT, modelT, runtim
     skills={snapshot.skills ?? []}
     permissions={snapshot.permissions}
     defaultPermission={snapshot.defaultPermission}
+    presets={snapshot.presets ?? []}
+    defaultPreset={snapshot.defaultPreset ?? 'standard'}
     onClose={onClose}
     onSubmit={async (form) => {
       setBusy(true)

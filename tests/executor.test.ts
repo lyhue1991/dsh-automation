@@ -14,7 +14,9 @@ test('无人值守运行通过官方服务应用完整权限预设', () => {
 })
 
 test('无人值守守卫拒绝未知工具和后台 shell', () => {
-  assert.equal(unattendedToolGuardReason('read', {}), undefined)
+  for (const name of ['bash', 'bash_io', 'create_goal', 'edit', 'find', 'get_goal', 'grep', 'ls', 'read', 'skill', 'update_goal', 'write']) {
+    assert.equal(unattendedToolGuardReason(name, {}), undefined, `${name} should be allowed`)
+  }
   assert.equal(unattendedToolGuardReason('automation_create', {}), "Tool 'automation_create' is not in the unattended automation allowlist.")
   assert.match(unattendedToolGuardReason('bash', { run_in_background: true }) ?? '', /background processes/)
 })

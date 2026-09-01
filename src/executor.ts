@@ -22,11 +22,11 @@ interface SessionEventLike {
 
 const UNATTENDED_TOOL_ALLOWLIST = new Set([
   'run_code',
-  'bash', 'pwsh',
+  'bash', 'bash_io', 'pwsh',
   'read', 'read_image', 'write', 'edit', 'str_replace_editor',
-  'glob', 'grep', 'lsp',
+  'find', 'glob', 'grep', 'ls', 'lsp',
   'web_search', 'web_fetch',
-  'skill',
+  'skill', 'create_goal', 'get_goal', 'update_goal',
   'session_search', 'session_trace', 'session_event_read', 'session_event_search', 'session_event_trace',
 ])
 const CANCEL_CONVERGENCE_TIMEOUT_MS = 10_000

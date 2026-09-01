@@ -36,6 +36,12 @@ export interface ModelCatalogFailure {
     readonly providerLabel: string;
     readonly message: string;
 }
+export interface AgentPresetOption {
+    readonly id: string;
+    readonly name: string;
+    readonly description?: string;
+    readonly broken?: string;
+}
 export interface CreateRequest {
     readonly name: string;
     readonly prompt: string;
@@ -64,6 +70,8 @@ export interface AutomationSnapshot {
         readonly id: string;
         readonly name: string;
     }[];
+    readonly presets: readonly AgentPresetOption[];
+    readonly defaultPreset: string;
     readonly permissions: readonly PermissionOption[];
     readonly defaultPermission: string;
     readonly definitions: readonly AutomationDefinitionView[];
@@ -148,6 +156,7 @@ export declare class AutomationService {
     private serialize;
     private permissionPresets;
     private requirePermission;
+    private requireAgentPreset;
     /** 把旧版 full-access 及已移除的预设收敛到 Host 当前可用列表。 */
     private migratePermissionPresets;
     private recoverInterruptedRuns;

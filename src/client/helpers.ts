@@ -29,6 +29,7 @@ export interface AutomationFormState {
   readonly modelKey: string
   readonly reasoningEffort: string
   readonly skills: readonly string[]
+  readonly agentPreset: string
 }
 
 export type FormErrorKey =
@@ -83,6 +84,7 @@ export function defaultFormState(
   workspaces: readonly WorkspaceOption[] = [],
   defaultModel?: ModelOption | null,
   defaultPermission = '',
+  defaultPreset = 'standard',
 ): AutomationFormState {
   return {
     name: '',
@@ -104,6 +106,7 @@ export function defaultFormState(
       : `${defaultModel.provider}::${defaultModel.model}`,
     reasoningEffort: defaultModel?.reasoning?.defaultEffort ?? 'none',
     skills: [],
+    agentPreset: defaultPreset,
   }
 }
 
@@ -182,6 +185,7 @@ export function buildCreateInput(
     cwd: workspace.path,
     ...(selected === undefined ? { provider: null, model: null } : { provider: selected.provider, model: selected.model }),
     reasoningEffort: form.reasoningEffort === 'none' ? null : form.reasoningEffort,
+    agentPreset: form.agentPreset,
   }
 }
 
@@ -430,6 +434,7 @@ export function formFromAutomation(
     modelKey,
     reasoningEffort: item.reasoningEffort ?? 'none',
     timeZone: item.timeZone || schedule.timeZone || base.timeZone,
+    agentPreset: item.agentPreset ?? base.agentPreset,
   }
   switch (schedule.kind) {
     case 'once':

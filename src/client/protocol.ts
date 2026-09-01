@@ -11,6 +11,13 @@ export interface PermissionOption {
   readonly description?: string
 }
 
+export interface AgentPresetOption {
+  readonly id: string
+  readonly name: string
+  readonly description?: string
+  readonly broken?: string
+}
+
 export type AutomationSchedule =
   | { readonly kind: 'once'; readonly at: string; readonly timeZone?: string }
   | { readonly kind: 'interval'; readonly everyMinutes: number; readonly anchor?: string; readonly timeZone?: string }
@@ -58,6 +65,7 @@ export interface AutomationViewModel {
   readonly scheduleSummary: string
   readonly timeZone: string
   readonly permission: AutomationPermission
+  readonly agentPreset?: string
   readonly workspaceId?: string
   readonly cwd?: string
   readonly provider?: string | null
@@ -96,6 +104,8 @@ export interface AutomationSnapshot {
   readonly modelFailures?: readonly ModelCatalogFailure[]
   readonly defaultModel?: ModelOption | null
   readonly skills?: readonly { readonly id: string; readonly name: string }[]
+  readonly presets?: readonly AgentPresetOption[]
+  readonly defaultPreset?: string
   readonly permissions: readonly PermissionOption[]
   readonly defaultPermission: string
   readonly automations: readonly AutomationViewModel[]
@@ -114,6 +124,7 @@ export interface CreateAutomationInput {
   readonly provider?: string | null
   readonly model?: string | null
   readonly reasoningEffort?: string | null | undefined
+  readonly agentPreset?: string
 }
 
 export interface SnapshotRequest { readonly sessionId?: string }

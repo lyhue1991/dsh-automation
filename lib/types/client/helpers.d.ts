@@ -19,6 +19,7 @@ export interface AutomationFormState {
     readonly modelKey: string;
     readonly reasoningEffort: string;
     readonly skills: readonly string[];
+    readonly agentPreset: string;
 }
 export type FormErrorKey = 'form.error.name' | 'form.error.prompt' | 'form.error.once' | 'form.error.interval' | 'form.error.weekdays' | 'form.error.workspace';
 export declare class AutomationFormError extends Error {
@@ -36,7 +37,7 @@ export declare function insertSkillGesture(prompt: string, token: string, caret:
     readonly caret: number;
 };
 export declare function localDateTimeValue(date?: Date): string;
-export declare function defaultFormState(now?: Date, workspaces?: readonly WorkspaceOption[], defaultModel?: ModelOption | null, defaultPermission?: string): AutomationFormState;
+export declare function defaultFormState(now?: Date, workspaces?: readonly WorkspaceOption[], defaultModel?: ModelOption | null, defaultPermission?: string, defaultPreset?: string): AutomationFormState;
 export declare function buildCreateInput(form: AutomationFormState, workspaces: readonly WorkspaceOption[], models: readonly ModelOption[], now?: Date, options?: {
     readonly allowPastOnce?: boolean;
 }): CreateAutomationInput;
