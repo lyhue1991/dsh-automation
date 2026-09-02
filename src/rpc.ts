@@ -153,6 +153,7 @@ async function snapshotValue(service: AutomationService, payload: Record<string,
       scheduleSummary: definition.rrule,
       timeZone: definition.timeZone,
       permission: definition.permissionPreset,
+      agentPreset: definition.agentPreset,
       ...(definition.nextRunAt === null ? {} : { nextRunAt: definition.nextRunAt }),
       ...(definition.lastRun === null ? {} : {
         lastRunAt: definition.lastRun.finishedAt ?? definition.lastRun.startedAt ?? definition.lastRun.scheduledFor,
@@ -278,4 +279,3 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
     }
   }, { authority: 'loopback' })
 }
-

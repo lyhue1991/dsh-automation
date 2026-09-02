@@ -127,3 +127,54 @@ test('RPC 限制任务字段长度并隐藏内部异常文案', async () => {
   assert.equal(warnings.length, 1)
   assert.match(warnings[0] ?? '', /RPC 'create' failed:.*storage path C:\\secret\\domain\.db/s)
 })
+
+test('RPC snapshot 返回任务的 Agent preset，编辑表单才能保留用户选择', async () => {
+  let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<any>) | undefined
+  const ctx = {
+    logger: { warn() {} },
+    connection: { rpc: { handle(_channel: string, next: typeof handler) { handler = next; return async () => {} } } },
+  }
+  registerAutomationRpc(ctx as never, {
+    async snapshot() {
+      return {
+        generatedAt: '2026-08-20T00:00:00.000Z',
+        workspace: null,
+        workspaces: [],
+        models: [],
+        modelFailures: [],
+        defaultModel: null,
+        skills: [],
+        presets: [{ id: 'pi', name: 'Pi' }],
+        defaultPreset: 'standard',
+        permissions: [],
+        defaultPermission: 'read-only',
+        definitions: [{
+          version: 1,
+          id: 'a1',
+          revision: 2,
+          name: 'task',
+          prompt: 'run',
+          status: 'active',
+          schedule: { kind: 'daily', time: '09:00', timeZone: 'UTC' },
+          rrule: 'FREQ=DAILY',
+          timeZone: 'UTC',
+          workspaceId: 'ws',
+          cwd: '/tmp/ws',
+          agentPreset: 'pi',
+          provider: null,
+          model: null,
+          permissionPreset: 'read-only',
+          createdBy: { kind: 'web', sessionId: 'settings' },
+          createdAt: '2026-08-19T00:00:00.000Z',
+          updatedAt: '2026-08-19T00:00:00.000Z',
+          nextRunAt: null,
+          lastRun: null,
+        }],
+        runs: [],
+      }
+    },
+  } as never)
+  const result = await handler!('snapshot', { sessionId: 'settings' }, new AbortController().signal)
+  assert.equal(result.ok, true)
+  assert.equal(result.value.automations[0].agentPreset, 'pi')
+})
