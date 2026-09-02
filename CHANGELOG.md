@@ -2,6 +2,10 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.3.1 — 2026-09-02
+
+- Include `agentPreset` in automation snapshot results so the edit form preserves the selected preset instead of silently falling back to the default.
+
 ## 0.3.0 — 2026-09-01
 
 - Add Agent preset selection to scheduled tasks. The Web create/edit forms and Agent create/update APIs now expose Host presets, persist the selected preset, and validate it against the currently available list.

@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## 0.3.1 — 2026-09-02
+
+- 自动化快照结果现在会返回 `agentPreset`，编辑表单可保留用户已选择的 preset，不会再静默回退到默认值。
+
 ## 0.3.0 — 2026-09-01
 
 - 定时任务支持选择 Agent preset。Web 创建/编辑表单与 Agent 创建/更新 API 现在会展示 Host presets、持久化所选 preset，并按当前可用列表校验。
