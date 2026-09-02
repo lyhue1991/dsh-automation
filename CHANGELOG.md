@@ -2,6 +2,11 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.3.0 — 2026-09-01
+
+- Add Agent preset selection to scheduled tasks. The Web create/edit forms and Agent create/update APIs now expose Host presets, persist the selected preset, and validate it against the currently available list.
+- Expand the unattended tool allowlist with additional Host and PI tools, including `bash_io`, `find`, `ls`, and goal-tracking tools.
+
 ## 0.2.0 — 2026-08-31
 
 - Keep a finished run's session alive as an interactive session (`liveSessionLimit`, default 20) instead of disposing it right away, so the Web composer no longer turns into "Session unavailable" until a restart. The kept Agent has its unattended tool guard lifted and approval policy restored to `ask`; eviction skips sessions running a user turn, and `forgetSession` or service shutdown still releases them. Set `liveSessionLimit: 0` to restore the old dispose-immediately behavior.
