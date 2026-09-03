@@ -2,6 +2,11 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.3.2 — 2026-09-03
+
+- Enable `@` references in scheduled-task prompt forms, with workspace file lookup and DSH session suggestions.
+- Raise the default concurrent automation run limit from 2 to 4, and reject manual runs once that global limit is already active.
+
 ## 0.3.1 — 2026-09-02
 
 - Include `agentPreset` in automation snapshot results so the edit form preserves the selected preset instead of silently falling back to the default.
