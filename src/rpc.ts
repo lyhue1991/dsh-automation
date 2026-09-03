@@ -2,6 +2,8 @@
 
 import { AutomationRequestError, type AutomationService } from './service.ts'
 import type { AutomationSchedule as DomainSchedule, Weekday } from './types.ts'
+import { readdir } from 'node:fs/promises'
+import { join, relative } from 'node:path'
 
 const WEEKDAYS: readonly Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
 
@@ -194,6 +196,30 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
       switch (endpoint) {
         case 'snapshot':
           return { ok: true, value: await snapshotValue(service, payload, signal) }
+        case 'reference-files': {
+          const snapshot = await service.snapshot(scopeOf(payload), signal)
+          const cwd = snapshot.workspaces.find(item => item.id === payload.workspaceId)?.path ?? snapshot.workspace?.path
+          if (typeof cwd !== 'string' || cwd === '') return { ok: true, value: [] }
+          const query = typeof payload.query === 'string' ? payload.query.toLowerCase() : ''
+          const results: Array<{ path: string; directory: boolean }> = []
+          const walk = async (dir: string, depth: number): Promise<void> => {
+            if (depth > 3 || results.length >= 80 || signal.aborted) return
+            let entries
+            try { entries = await readdir(dir, { withFileTypes: true }) } catch { return }
+            for (const entry of entries) {
+              if (entry.name.startsWith('.') || results.length >= 80) continue
+              const path = relative(cwd, join(dir, entry.name))
+              if (query !== '' && !path.toLowerCase().includes(query)) {
+                if (entry.isDirectory()) await walk(join(dir, entry.name), depth + 1)
+                continue
+              }
+              results.push({ path, directory: entry.isDirectory() })
+              if (entry.isDirectory()) await walk(join(dir, entry.name), depth + 1)
+            }
+          }
+          await walk(cwd, 0)
+          return { ok: true, value: results.slice(0, 50) }
+        }
         case 'create': {
           const input = record(payload.input, 'input')
           const timeZone = string(input.timeZone, 'input.timeZone')

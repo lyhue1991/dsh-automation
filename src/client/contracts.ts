@@ -21,6 +21,8 @@ export interface AutomationViewProps {
   readonly modelT: ModelTranslate
   readonly runtime: AutomationRuntime
   readonly closeSettings?: () => void
+  readonly rpc?: ClientRpc
+  readonly sessions?: readonly { readonly id: string; readonly title?: string; readonly cwd?: string }[]
 }
 
 

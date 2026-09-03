@@ -23,7 +23,7 @@ export interface Config {
 }
 
 export const Config = z.object({
-  maxConcurrentRuns: z.number().step(1).min(1).max(32).default(2),
+  maxConcurrentRuns: z.number().step(1).min(1).max(32).default(4),
   runTimeoutMinutes: z.number().step(1).min(1).max(1_440).default(60),
   misfireGraceMinutes: z.number().step(1).min(0).max(10_080).default(15),
   historyLimit: z.number().step(1).min(1).max(5_000).default(200),

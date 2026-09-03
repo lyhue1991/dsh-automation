@@ -12,7 +12,7 @@ import {
   type ScheduleKind,
 } from './helpers.js'
 import { shouldConfirmFullAccess } from './create-modal-logic.js'
-import { FolderIcon, ShieldIcon, SparkleIcon } from './icons.js'
+import { FolderIcon, PresetIcon, ShieldIcon, SparkleIcon } from './icons.js'
 import { MenuHostProvider, MenuPanel, MenuPopup, MenuRow, MenuSelect, useMenuState } from './menu.js'
 import { IconCheckOutline16, IconChevronDownOutline14, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 
@@ -22,7 +22,7 @@ const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2,
 const MINUTES = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'))
 
 export function CreateModal({
-  t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, presets, defaultPreset, draft, editing, onClose, onSubmit,
+  t, permissionT, modelT, busy, workspaces, models, modelFailures, defaultModel, skills, permissions, defaultPermission, presets, defaultPreset, draft, editing, onClose, onSubmit, rpc, sessions: sessionsProp,
 }: {
   readonly t: Translate
   readonly permissionT: PermissionTranslate
@@ -41,6 +41,8 @@ export function CreateModal({
   readonly editing?: boolean
   readonly onClose: () => void
   readonly onSubmit: (form: AutomationFormState) => Promise<void>
+  readonly rpc?: { call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<unknown> }
+  readonly sessions?: readonly { readonly id: string; readonly title?: string; readonly cwd?: string }[]
 }): JSX.Element {
   const [form, setForm] = useState<AutomationFormState>(() => ({ ...defaultFormState(new Date(), workspaces, defaultModel, defaultPermission, defaultPreset), ...draft }))
   const [validationError, setValidationError] = useState<string>()
@@ -99,6 +101,7 @@ export function CreateModal({
   const today = localDateValue(new Date())
   const minOnceTime = datePart === today ? localTimeValue(new Date()) : undefined
   const [menuHost, setMenuHost] = useState<HTMLDivElement | null>(null)
+  const [references, setReferences] = useState<readonly { path: string; directory: boolean; sessionId?: string; title?: string }[]>([])
   const workspace = workspaces.find(item => item.id === form.workspaceId)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const caretRef = useRef(0)
@@ -117,6 +120,29 @@ export function CreateModal({
       caretRef.current = next.caret
     })
   }
+  const mention = mentionToken(form.prompt, caretRef.current)
+  const insertReference = (item: { path: string; directory: boolean; sessionId?: string; title?: string }): void => {
+    if (mention === null) return
+    const label = item.sessionId === undefined
+      ? (item.path.includes(' ') ? `@"${item.path}"` : `@${item.path}`)
+      : `@[${item.title ?? item.path}](dsh-session:${encodeURIComponent(item.sessionId)})`
+    const next = form.prompt.slice(0, mention.start) + label + form.prompt.slice(caretRef.current)
+    const caret = mention.start + label.length
+    update({ prompt: next })
+    queueMicrotask(() => { const el = promptRef.current; if (el !== null) { el.focus(); el.setSelectionRange(caret, caret); caretRef.current = caret } })
+    setReferences([])
+  }
+  useEffect(() => {
+    if (mention === null) { setReferences([]); return }
+    const files = rpc === undefined ? Promise.resolve([]) : rpc.call('/dsh-automation', 'reference-files', { workspaceId: form.workspaceId, query: mention.query }).then(value => {
+      const result = (value as { value?: unknown }).value
+      return Array.isArray(result) ? result as { path: string; directory: boolean }[] : []
+    }).catch(() => [])
+    void files.then(items => {
+      const sessions = (sessionsProp ?? []).filter(item => `${item.title ?? ''} ${item.id}`.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 20).map(item => ({ path: item.title ?? item.id, directory: false, sessionId: item.id, title: item.title }))
+      setReferences([...items.slice(0, 30), ...sessions])
+    })
+  }, [mention?.query, form.workspaceId, rpc])
   return (
     <div className="dsh-st-mask" role="presentation">
       <MenuHostProvider host={menuHost}>
@@ -207,6 +233,9 @@ export function CreateModal({
           <span>{t('form.prompt')}</span>
           <div className="dsh-st-prompt-card">
             <textarea ref={promptRef} value={form.prompt} placeholder={t('form.promptPlaceholder')} onChange={event => { rememberCaret(); update({ prompt: event.target.value }) }} onSelect={rememberCaret} onClick={rememberCaret} onKeyUp={rememberCaret} />
+            {references.length > 0 && mention !== null && <div className="dsh-st-reference-menu" role="listbox">
+              {references.map(item => <button key={`${item.sessionId ?? 'file'}:${item.path}`} type="button" onMouseDown={event => event.preventDefault()} onClick={() => insertReference(item)}><span>{item.sessionId === undefined ? (item.directory ? 'folder' : 'file') : 'session'}</span><span>{item.path}{item.directory ? '/' : ''}</span></button>)}
+            </div>}
             <div className="dsh-st-composer">
               <div className="dsh-st-composer-left">
                 <MenuPanel ghost up label={<><FolderIcon width={14} height={14} />{workspace?.title || t('form.workspace')}</>}>
@@ -247,8 +276,13 @@ export function CreateModal({
                 <MenuSelect
                   pill
                   up
+                  icon={<PresetIcon width={14} height={14} />}
                   value={form.agentPreset}
-                  options={presets.filter(option => option.broken === undefined).map(option => ({ value: option.id, label: option.name }))}
+                  options={presets.filter(option => option.broken === undefined).map(option => ({
+                    value: option.id,
+                    label: option.name,
+                    icon: <PresetIcon width={14} height={14} />,
+                  }))}
                   onChange={value => update({ agentPreset: value })}
                 />
               </div>
@@ -513,5 +547,8 @@ function clampOnceAt(value: string): string {
   return new Date(next.getTime() - offset).toISOString().slice(0, 16)
 }
 
-
-
+function mentionToken(text: string, caret: number): { query: string; start: number } | null {
+  const before = text.slice(0, caret)
+  const match = before.match(/(?:^|\s)@([^\s@]*)$/)
+  return match === null ? null : { query: match[1] ?? '', start: caret - (match[1]?.length ?? 0) - 1 }
+}

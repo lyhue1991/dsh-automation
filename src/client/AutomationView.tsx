@@ -62,7 +62,7 @@ const EXAMPLES: readonly { readonly name: string; readonly scheduleKind: Schedul
   { name: '工作日早报', scheduleKind: 'weekly', time: '08:00', weekdays: [1, 2, 3, 4, 5] },
 ]
 
-export function AutomationView({ t, permissionT, modelT, runtime, closeSettings }: AutomationViewProps): JSX.Element {
+export function AutomationView({ t, permissionT, modelT, runtime, closeSettings, rpc, sessions }: AutomationViewProps): JSX.Element {
   const state = useSyncExternalStore(runtime.source.subscribe, runtime.source.getSnapshot, runtime.source.getSnapshot)
   const [tab, setTab] = useState<Tab>('mine')
   const [query, setQuery] = useState('')
@@ -317,6 +317,8 @@ export function AutomationView({ t, permissionT, modelT, runtime, closeSettings 
           defaultPermission={defaultPermission}
           presets={snapshot?.presets ?? []}
           defaultPreset={snapshot?.defaultPreset ?? 'standard'}
+          {...(rpc === undefined ? {} : { rpc })}
+          {...(sessions === undefined ? {} : { sessions })}
           editing={editingId !== undefined}
           {...(draft === undefined ? {} : { draft })}
           onClose={closeModal}
@@ -350,13 +352,15 @@ export function AutomationView({ t, permissionT, modelT, runtime, closeSettings 
   )
 }
 
-export function AutomationTaskEditor({ item, snapshot, t, permissionT, modelT, runtime, onClose }: {
+export function AutomationTaskEditor({ item, snapshot, t, permissionT, modelT, runtime, rpc, sessions, onClose }: {
   readonly item: AutomationViewModel
   readonly snapshot: AutomationSnapshot
   readonly t: Translate
   readonly permissionT: PermissionTranslate
   readonly modelT: ModelTranslate
   readonly runtime: AutomationViewProps['runtime']
+  readonly rpc?: AutomationViewProps['rpc']
+  readonly sessions?: AutomationViewProps['sessions']
   readonly onClose: () => void
 }): JSX.Element {
   const [busy, setBusy] = useState(false)
@@ -376,6 +380,8 @@ export function AutomationTaskEditor({ item, snapshot, t, permissionT, modelT, r
     defaultPermission={snapshot.defaultPermission}
     presets={snapshot.presets ?? []}
     defaultPreset={snapshot.defaultPreset ?? 'standard'}
+    {...(rpc === undefined ? {} : { rpc })}
+    {...(sessions === undefined ? {} : { sessions })}
     draft={draft}
     editing
     onClose={onClose}
@@ -391,12 +397,14 @@ export function AutomationTaskEditor({ item, snapshot, t, permissionT, modelT, r
   />
 }
 
-export function AutomationTaskCreator({ snapshot, t, permissionT, modelT, runtime, onClose }: {
+export function AutomationTaskCreator({ snapshot, t, permissionT, modelT, runtime, rpc, sessions, onClose }: {
   readonly snapshot: AutomationSnapshot
   readonly t: Translate
   readonly permissionT: PermissionTranslate
   readonly modelT: ModelTranslate
   readonly runtime: AutomationViewProps['runtime']
+  readonly rpc?: AutomationViewProps['rpc']
+  readonly sessions?: AutomationViewProps['sessions']
   readonly onClose: () => void
 }): JSX.Element {
   const [busy, setBusy] = useState(false)
@@ -415,6 +423,8 @@ export function AutomationTaskCreator({ snapshot, t, permissionT, modelT, runtim
     defaultPermission={snapshot.defaultPermission}
     presets={snapshot.presets ?? []}
     defaultPreset={snapshot.defaultPreset ?? 'standard'}
+    {...(rpc === undefined ? {} : { rpc })}
+    {...(sessions === undefined ? {} : { sessions })}
     onClose={onClose}
     onSubmit={async (form) => {
       setBusy(true)

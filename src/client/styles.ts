@@ -141,8 +141,8 @@ const CSS_TEXT = `
 .dsh-st-inline input[type=date]{min-width:148px;max-width:170px}
 .dsh-st-weekdays button{min-width:52px;height:34px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:transparent}
 .dsh-st-weekdays button.is-on{border-color:transparent;background:#fff;color:#111}
-.dsh-st-prompt-card{display:flex;flex-direction:column;flex:1;min-height:160px;max-width:100%;border:1px solid var(--dsw-alias-border-l2);border-radius:22px;overflow:visible;background:rgba(255,255,255,.03)}
-.dsh-st-prompt-card textarea{flex:1;width:100%;max-width:100%;min-height:140px;border:0;background:transparent;padding:16px 18px;font-size:14px;line-height:1.65;resize:none}
+.dsh-st-prompt-card{position:relative;display:flex;flex-direction:column;flex:1;min-height:160px;max-width:100%;border:1px solid var(--dsw-alias-border-l2);border-radius:22px;overflow:visible;background:rgba(255,255,255,.03)}
+.dsh-st-prompt-card textarea{flex:1;width:100%;max-width:100%;min-height:140px;border:0;background:transparent;padding:16px 18px;font-size:14px;line-height:1.65;resize:none}.dsh-st-reference-menu{position:absolute;z-index:50;left:14px;right:14px;top:48px;max-height:220px;overflow:auto;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-specific-menu,#1c2128);box-shadow:0 8px 24px rgba(0,0,0,.3)}.dsh-st-reference-menu button{display:flex;gap:8px;width:100%;padding:7px 9px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;cursor:pointer}.dsh-st-reference-menu button:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,.08))}
 .dsh-st-composer,.dsh-st-composer-left,.dsh-st-composer-right{display:flex;align-items:center;flex-wrap:nowrap}
 .dsh-st-composer{justify-content:space-between;gap:8px;padding:2px 8px 10px;border-top:0}
 .dsh-st-composer-left,.dsh-st-composer-right{gap:2px;min-width:0}

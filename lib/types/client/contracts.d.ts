@@ -13,6 +13,12 @@ export interface AutomationViewProps {
     readonly modelT: ModelTranslate;
     readonly runtime: AutomationRuntime;
     readonly closeSettings?: () => void;
+    readonly rpc?: ClientRpc;
+    readonly sessions?: readonly {
+        readonly id: string;
+        readonly title?: string;
+        readonly cwd?: string;
+    }[];
 }
 export interface ClientRpc {
     call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal): Promise<unknown>;

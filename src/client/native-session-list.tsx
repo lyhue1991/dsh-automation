@@ -8,7 +8,7 @@ import {
   Modal,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ModelTranslate, SessionSelector, Translate, WorkspaceSelector } from './contracts.js'
+import type { ClientRpc, ModelTranslate, SessionSelector, Translate, WorkspaceSelector } from './contracts.js'
 import type { PermissionTranslate } from './permissions.js'
 import {
   ArchiveIcon,
@@ -59,6 +59,7 @@ export function NativeScheduleSessionList(props: {
   readonly permissionT?: PermissionTranslate
   readonly modelT?: ModelTranslate
   readonly runtime: AutomationRuntime
+  readonly rpc?: ClientRpc
   readonly openSession?: (sessionId: string) => void
   readonly useSessions?: SessionSelector
   readonly useWorkspaces?: WorkspaceSelector
@@ -67,7 +68,7 @@ export function NativeScheduleSessionList(props: {
   readonly deleteSession?: (sessionId: string) => void | Promise<void>
   readonly forkSession?: (sessionId: string) => void | Promise<void>
 }): JSX.Element {
-  const { t, permissionT, modelT, runtime, openSession, useSessions, useWorkspaces, renameSession, archiveSession, forkSession } = props
+  const { t, permissionT, modelT, runtime, rpc, openSession, useSessions, useWorkspaces, renameSession, archiveSession, forkSession } = props
   const state = useSyncExternalStore(runtime.source.subscribe, runtime.source.getSnapshot, runtime.source.getSnapshot)
   const selectedId = useSessions ? useSessions(snap => snap.current ?? null) : null
   const sessionById: Record<string, NativeSessionLike> = useSessions
@@ -263,11 +264,13 @@ export function NativeScheduleSessionList(props: {
           permissionT={permissionT}
           modelT={modelT}
           runtime={runtime}
+          {...(rpc === undefined ? {} : { rpc })}
+          sessions={Object.entries(sessionById).map(([id, session]) => ({ id, ...((session.title ?? session.displayTitle) === undefined ? {} : { title: session.title ?? session.displayTitle }) }))}
           onClose={() => setEditTaskTarget(undefined)}
         />
       )}
       {creatingTask && state.snapshot !== undefined && permissionT !== undefined && modelT !== undefined && (
-        <AutomationTaskCreator snapshot={state.snapshot} t={t} permissionT={permissionT} modelT={modelT} runtime={runtime} onClose={() => setCreatingTask(false)} />
+        <AutomationTaskCreator snapshot={state.snapshot} t={t} permissionT={permissionT} modelT={modelT} runtime={runtime} {...(rpc === undefined ? {} : { rpc })} sessions={Object.entries(sessionById).map(([id, session]) => ({ id, ...((session.title ?? session.displayTitle) === undefined ? {} : { title: session.title ?? session.displayTitle }) }))} onClose={() => setCreatingTask(false)} />
       )}
     </div>
   )

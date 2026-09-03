@@ -172,6 +172,20 @@ test('创建和立即运行都限制在来源工作区', async () => {
   )
 })
 
+test('立即运行达到全局并发上限时返回提醒且不创建排队记录', async () => {
+  const { service, runs } = await makeService({}, { maxConcurrentRuns: 2 })
+  const definition = sampleDefinition({ schedule: { kind: 'daily', time: '09:00', timeZone: 'UTC' } })
+  await (service as any).definitions.put(definition.id, definition)
+  ;(service as any).active.set('run-a', { abort: new AbortController(), promise: Promise.resolve() })
+  ;(service as any).active.set('run-b', { abort: new AbortController(), promise: Promise.resolve() })
+
+  await assert.rejects(
+    () => service.runNow({ sessionId: 'session_1', creatorKind: 'web' }, definition.id),
+    /maximum of 2 concurrent automation runs is already active/,
+  )
+  assert.equal([...runs.entries()].some(([, run]) => run.trigger === 'manual'), false)
+})
+
 test('权限列表、默认值和校验均来自 Host 官方服务', async () => {
   const { service } = await makeService()
   const snapshot = await service.snapshot({ sessionId: 'session_1', creatorKind: 'web', hostWide: true })

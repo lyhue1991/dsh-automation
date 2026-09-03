@@ -434,6 +434,11 @@ export class AutomationService {
         && (candidate.status === 'queued' || candidate.status === 'running')
       ))
       if (alreadyActive) throw new AutomationRequestError('This automation already has a queued or running task.')
+      if (this.active.size >= this.config.maxConcurrentRuns) {
+        throw new AutomationRequestError(
+          `The maximum of ${this.config.maxConcurrentRuns} concurrent automation runs is already active. Please try again later.`,
+        )
+      }
       const value = createManualRun(definition, toIso())
       await this.runs.put(value.id, value)
       return value

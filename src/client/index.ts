@@ -83,7 +83,11 @@ export function apply(ctx: ClientContext): void {
     label: () => t('tab'),
     icon: 'schedule',
   }, function ScheduledTasksSettings(props: { close?: () => void }) {
-    return createElement(AutomationView, { t, permissionT, modelT, runtime, ...(props.close === undefined ? {} : { closeSettings: props.close }) })
+    const sessions = Object.entries(ctx.sessions?.list?.getSnapshot().byId ?? {}).map(([id, value]) => {
+      const item = value as { title?: string; cwd?: string; workspacePath?: string }
+      return { id, ...(item.title === undefined ? {} : { title: item.title }), ...(item.cwd === undefined && item.workspacePath === undefined ? {} : { cwd: item.cwd ?? item.workspacePath }) }
+    })
+    return createElement(AutomationView, { t, permissionT, modelT, runtime, rpc: ctx.connection.rpc, sessions, ...(props.close === undefined ? {} : { closeSettings: props.close }) })
   }))
   ctx.slots.inject('sidebar.schedule', () => ctx.slots.register({
     name: 'sidebar.schedule',
@@ -141,9 +145,10 @@ export function apply(ctx: ClientContext): void {
           const opener = createScheduledSessionOpener(ctx, runtime, hostOpen)
           return createElement(NativeScheduleSessionList, {
             t,
-            permissionT,
-            modelT,
-            runtime,
+          permissionT,
+          modelT,
+          runtime,
+          rpc: ctx.connection.rpc,
             openSession: opener,
             ...(isSessionSelector(props.useSessions) ? { useSessions: props.useSessions } : {}),
             ...(isWorkspaceSelector(props.useWorkspaces) ? { useWorkspaces: props.useWorkspaces } : {}),

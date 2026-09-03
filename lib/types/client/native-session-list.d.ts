@@ -1,4 +1,4 @@
-import type { ModelTranslate, SessionSelector, Translate, WorkspaceSelector } from './contracts.js';
+import type { ClientRpc, ModelTranslate, SessionSelector, Translate, WorkspaceSelector } from './contracts.js';
 import type { PermissionTranslate } from './permissions.js';
 import { type AutomationRuntime } from './runtime.js';
 export { nativeSessionMenuStyle, nextOpenSessionMenu, nextOpenSessionMenuId, pointerPoint, relativeTime, resolveEventElement, shouldCloseNativeSessionMenu, } from './native-session-menu.js';
@@ -7,6 +7,7 @@ export declare function NativeScheduleSessionList(props: {
     readonly permissionT?: PermissionTranslate;
     readonly modelT?: ModelTranslate;
     readonly runtime: AutomationRuntime;
+    readonly rpc?: ClientRpc;
     readonly openSession?: (sessionId: string) => void;
     readonly useSessions?: SessionSelector;
     readonly useWorkspaces?: WorkspaceSelector;

@@ -3,7 +3,7 @@
     - id: dsh-automation
       name: '@lyhue1991/dsh-automation'
       config:
-        maxConcurrentRuns: 2
+        maxConcurrentRuns: 4
         runTimeoutMinutes: 60
         misfireGraceMinutes: 15
         historyLimit: 200
