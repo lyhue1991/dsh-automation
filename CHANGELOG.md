@@ -2,6 +2,10 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.3.3 — 2026-09-08
+
+- Read automation session event logs through the API supported by both older and newer DSH Session runtimes, preventing completed runs from being marked failed with `events is not iterable`.
+
 ## 0.3.2 — 2026-09-03
 
 - Enable `@` references in scheduled-task prompt forms, with workspace file lookup and DSH session suggestions.

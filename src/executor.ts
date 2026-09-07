@@ -20,6 +20,25 @@ interface SessionEventLike {
   readonly data: Record<string, any>
 }
 
+/**
+ * DSH 0.1.0-rc.6 暴露 `session.events`；较新的 DSH Session 改为
+ * `session.snapshotEvents(from, to)`。插件声明的是宽 peer range，需要兼容两种运行时。
+ */
+export function readSessionEvents(
+  session: unknown,
+  firstSeq: number,
+): readonly SessionEventLike[] {
+  const source = session as {
+    readonly snapshotEvents?: (fromSeq?: number, toSeqExclusive?: number) => readonly SessionEventLike[]
+    readonly events?: readonly SessionEventLike[]
+  }
+  if (typeof source.snapshotEvents === 'function') {
+    const events = source.snapshotEvents(firstSeq)
+    if (Array.isArray(events)) return events
+  }
+  return Array.isArray(source.events) ? source.events : []
+}
+
 const UNATTENDED_TOOL_ALLOWLIST = new Set([
   'run_code',
   'bash', 'bash_io', 'pwsh',
@@ -280,7 +299,7 @@ export async function executeAutomationRun(
     }
     if (timeout !== undefined) clearTimeout(timeout)
     await ctx.sessions.flush(handle.agent.session)
-    const outcome = summarizeRun(handle.agent.session.events, firstSeq)
+    const outcome = summarizeRun(readSessionEvents(handle.agent.session, firstSeq), firstSeq)
     const summary = boundSummary(outcome.text)
     const completion: RunCompletion = aborted
       ? {

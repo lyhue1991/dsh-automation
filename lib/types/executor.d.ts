@@ -7,6 +7,11 @@ interface SessionEventLike {
     readonly type: string;
     readonly data: Record<string, any>;
 }
+/**
+ * DSH 0.1.0-rc.6 暴露 `session.events`；较新的 DSH Session 改为
+ * `session.snapshotEvents(from, to)`。插件声明的是宽 peer range，需要兼容两种运行时。
+ */
+export declare function readSessionEvents(session: unknown, firstSeq: number): readonly SessionEventLike[];
 /** 对不保证及时响应 AbortSignal 的宿主任务设置第二道退出上限。 */
 export declare function settlesWithin(promise: Promise<unknown>, timeoutMs: number): Promise<boolean>;
 export declare function unattendedToolGuardReason(name: string, args: unknown): string | undefined;

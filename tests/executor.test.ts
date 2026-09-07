@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { applyUnattendedPermission, pinAutomationSessionTitle, settlesWithin, summarizeRun, unattendedToolGuardReason } from '../src/executor.ts'
+import { applyUnattendedPermission, pinAutomationSessionTitle, readSessionEvents, settlesWithin, summarizeRun, unattendedToolGuardReason } from '../src/executor.ts'
 
 test('无人值守运行通过官方服务应用完整权限预设', () => {
   const selected: string[] = []
@@ -35,6 +35,18 @@ test('运行摘要只取本 run 区间内的最后一条助手文本和 turn 结
   ], 2)
   assert.equal(result.text, '新结果')
   assert.equal(result.reason?.kind, 'completed')
+})
+
+test('读取 session events 兼容新旧 DSH API', () => {
+  const events = [
+    { seq: 0, type: 'request/header', data: {} },
+    { seq: 1, type: 'user/message', data: {} },
+    { seq: 2, type: 'turn/start', data: {} },
+    { seq: 3, type: 'turn/end', data: { reason: { kind: 'completed' } } },
+  ]
+  assert.deepEqual(readSessionEvents({ snapshotEvents: (from: number) => events.slice(from) }, 2), events.slice(2))
+  assert.deepEqual(readSessionEvents({ events }, 99), events)
+  assert.deepEqual(readSessionEvents({}, 0), [])
 })
 
 test('未注入 sessionTitle 时不能让整次执行失败', () => {
