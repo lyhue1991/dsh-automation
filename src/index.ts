@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import z from '@deepseek-ai/schemastery'
 import { readSessionEvents } from './executor.ts'
 import { AUTOMATION_PROMPT_NAME, AUTOMATION_PROMPT_ORDER, AUTOMATION_PROMPT_TEXT } from './prompt.ts'
-import { registerAutomationRpc } from './rpc.ts'
+import { registerAutomationRpc, type RpcContext } from './rpc.ts'
 import { AutomationService } from './service.ts'
 import { registerAutomationTools } from './tools.ts'
 
@@ -34,6 +34,10 @@ export const Config = z.object({
 const MUTATING_TOOLS = new Set([
   'automation_create', 'automation_manage',
 ])
+
+interface DynamicInjectionContext extends Context {
+  inject(services: readonly ['webServer'], callback: (webContext: Context) => void): unknown
+}
 
 export type SessionApprovalPolicy = 'ask' | 'never'
 
@@ -79,6 +83,16 @@ export function humanApprovalReason(toolName: string, args?: unknown): string {
     : 'This creates or expands unattended future work. Review the task prompt, schedule, workspace, and permission boundary before approving.'
 }
 
+export function mountAutomationRpc(ctx: Context, service: AutomationService): void {
+  const dynamicContext = ctx as DynamicInjectionContext
+  dynamicContext.inject(['webServer'], webCtx => {
+    webCtx.effect(
+      () => registerAutomationRpc(webCtx as unknown as RpcContext, service),
+      'dsh-automation: Web RPC',
+    )
+  })
+}
+
 export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
   const config = rawConfig as Required<Config>
   await ctx.effect(async () => {
@@ -97,8 +111,6 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
     let stopApproval = () => {}
     let stopPrompt = () => {}
     let stopSessionGone = () => {}
-    let removeRpc = async (): Promise<void> => {}
-
     const cleanup = async (): Promise<void> => {
       if (cleaned) return
       cleaned = true
@@ -108,10 +120,9 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
           ctx.logger.warn(`dsh-automation: lifecycle cleanup failed: ${String(error)}`)
         }
       }
-      const results = await Promise.allSettled([
-        removeRpc(),
-        ...[...agentTools.values()].reverse().map(dispose => Promise.resolve().then(dispose)),
-      ])
+      const results = await Promise.allSettled(
+        [...agentTools.values()].reverse().map(dispose => Promise.resolve().then(dispose)),
+      )
       for (const result of results) {
         if (result.status === 'rejected') {
           ctx.logger.warn(`dsh-automation: contribution cleanup failed: ${String(result.reason)}`)
@@ -166,7 +177,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
           reason: humanApprovalReason(exec.name, exec.arguments),
         }
       })
-      removeRpc = registerAutomationRpc(ctx, service)
+      mountAutomationRpc(ctx, service)
 
       const loader = ctx.get('loader') as { await(): Promise<void> } | undefined
       if (loader === undefined) service.start()

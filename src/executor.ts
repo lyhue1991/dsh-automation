@@ -97,6 +97,7 @@ export interface ExecutorConfig {
 }
 
 type AgentHandle = Awaited<ReturnType<Context['agents']['create']>>
+interface AgentSetupAgent { readonly session: unknown }
 
 /** 从持久化日志恢复一个已完成的自动化会话，供用户继续交互。 */
 export async function resumeAutomationSession(
@@ -116,11 +117,9 @@ export async function resumeAutomationSession(
   const resume = (): ReturnType<Context['agents']['resume']> => ownerCtx.agents.resume({
     resumeSessionId: SessionId(sessionId),
     agentOptions: { provider: selection.provider, model: selection.model },
-    setup: async (agentCtx: Context) => {
+    setup: async (agentCtx: Context, agent: AgentSetupAgent) => {
       await ctx.agentPresets.mount(agentCtx, target.agentPreset)
       installModelSelection(agentCtx, { current: selection, assembled: undefined })
-      const agent = agentCtx.agent
-      if (agent === undefined) throw new Error('automation resume has no scoped Agent')
       ctx.permissionPresets.set(agent.session, target.permissionPreset)
       // 恢复后的会话属于用户交互，不继承无人值守运行的 never 策略。
       setApprovalPolicy(agent.session, 'ask')
@@ -239,11 +238,9 @@ export async function executeAutomationRun(
       ...(config.signal === undefined ? {} : { signal: config.signal }),
       meta: { cwd: target.cwd, agentPreset: target.agentPreset },
       agentOptions: { provider: selection.provider, model: selection.model },
-      setup: async (agentCtx: Context) => {
+      setup: async (agentCtx: Context, agent: AgentSetupAgent) => {
         await ctx.agentPresets.mount(agentCtx, target.agentPreset)
         installModelSelection(agentCtx, { current: selection, assembled: undefined })
-        const agent = agentCtx.agent
-        if (agent === undefined) throw new Error('automation setup has no scoped Agent')
         applyUnattendedPermission(ctx.permissionPresets, agent.session, target.permissionPreset)
         removeToolGuard = agentCtx.tools.guard((exec: ToolExecution) => unattendedToolGuardReason(exec.name, exec.arguments))
       },

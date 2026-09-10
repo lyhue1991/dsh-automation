@@ -403,14 +403,12 @@ test('打开历史自动化会话时通过 resume 创建并复用用户 Agent', 
   let ownerDisposed = 0
   const resumeOwnerAgents = {
     withoutInitiator: async (operation: () => Promise<unknown>) => operation(),
-    async resume(options: { readonly resumeSessionId: string; readonly agentOptions: { readonly provider: string; readonly model: string }; readonly setup?: (ctx: unknown) => Promise<void> }) {
+    async resume(options: { readonly resumeSessionId: string; readonly agentOptions: { readonly provider: string; readonly model: string }; readonly setup?: (ctx: unknown, agent?: { readonly session: unknown }) => Promise<void> }) {
       resumeCalls += 1
       assert.equal(options.resumeSessionId, 'resume-session')
       assert.deepEqual(options.agentOptions, { provider: 'deepseek', model: 'v4' })
       const session = { header: { cwd: definition.cwd }, events: [] }
-      await options.setup?.({
-        agent: { session },
-      } as never)
+      await options.setup?.({} as never, { session })
       return { agent: { session }, async dispose() { disposed += 1 } }
     },
   }

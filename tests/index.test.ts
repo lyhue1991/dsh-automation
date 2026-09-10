@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   humanApprovalReason,
+  mountAutomationRpc,
   needsHumanApproval,
   sessionApprovalPolicy,
 } from '../src/index.ts'
@@ -42,4 +43,67 @@ test('会话策略优先读 override，否则回退配置默认值', () => {
     config: { policy: 'ask' },
   }, {}), 'ask')
   assert.equal(sessionApprovalPolicy(undefined, {}), undefined)
+})
+
+test('Web RPC 依赖 webServer 后再注册，兼容新版 DSH', () => {
+  const channels: string[] = []
+  const routes: string[] = []
+  const injects: string[][] = []
+  const effects: string[] = []
+  const ctx = {
+    inject(services: string[], callback: (webContext: unknown) => void): void {
+      injects.push([...services])
+      callback({
+        effect(register: () => unknown, label: string): void {
+          register()
+          effects.push(label)
+        },
+        connection: {
+          rpc: {
+            handle(channel: string): () => Promise<void> {
+              channels.push(channel)
+              return async () => {}
+            },
+          },
+        },
+      })
+    },
+  }
+
+  mountAutomationRpc(ctx as never, {} as never)
+
+  assert.deepEqual(injects, [['webServer']])
+  assert.deepEqual(channels, ['/dsh-automation'])
+  assert.deepEqual(effects, ['dsh-automation: Web RPC'])
+
+  const fallbackCtx = {
+    inject(services: string[], callback: (webContext: unknown) => void): void {
+      injects.push([...services])
+      callback({
+        effect(register: () => unknown, label: string): void {
+          register()
+          effects.push(label)
+        },
+        connection: {
+          requestRejection: () => undefined,
+          rpc: {
+            handle(): () => Promise<void> {
+              throw new Error('cannot get property "webServer" without inject')
+            },
+          },
+        },
+        webServer: {
+          register(route: { path: string }): () => void {
+            routes.push(route.path)
+            return () => {}
+          },
+        },
+      })
+    },
+  }
+
+  mountAutomationRpc(fallbackCtx as never, {} as never)
+
+  assert.deepEqual(routes, ['/dsh-automation'])
+  assert.deepEqual(injects, [['webServer'], ['webServer']])
 })

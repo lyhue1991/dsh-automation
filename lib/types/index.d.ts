@@ -1,5 +1,6 @@
 /** 独立自动化的 Cordis Host 插件入口。 */
 import type { Context } from '@deepseek-ai/cordis';
+import { AutomationService } from './service.ts';
 export declare const name = "dsh-automation";
 export declare const inject: string[];
 export interface Config {
@@ -29,6 +30,7 @@ export declare function needsHumanApproval(exec: {
     readonly signal: AbortSignal;
 }, isMountedAgent: boolean, policy?: SessionApprovalPolicy): boolean;
 export declare function humanApprovalReason(toolName: string, args?: unknown): string;
+export declare function mountAutomationRpc(ctx: Context, service: AutomationService): void;
 export declare function apply(ctx: Context, rawConfig: Config): Promise<void>;
 export type * from './types.ts';
 export { automationDomainSpec } from './domain.ts';

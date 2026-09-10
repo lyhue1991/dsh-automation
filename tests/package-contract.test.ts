@@ -57,4 +57,7 @@ test('包保持可安装的 DSH bundle 与 Web client 契约', async () => {
   const clientBundle = await readFile(new URL('lib/client.js', root), 'utf8')
   assert.match(clientBundle, /window\.__ModuleLoader__\.load\(/)
   assert.match(clientBundle, /@lyhue1991\/dsh-automation/)
+  const hostSource = await readFile(new URL('src/index.ts', root), 'utf8')
+  assert.match(hostSource, /mountAutomationRpc\(ctx, service\)/)
+  assert.doesNotMatch(hostSource, /registerAutomationRpc\(ctx, service\)/)
 })

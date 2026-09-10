@@ -126,12 +126,11 @@ function integrationCtx(agent: ReturnType<typeof completedRunAgent>, hooks: {
     sessions: { flush: async () => {} },
     agents: {
       withoutInitiator: (operation: () => unknown) => operation(),
-      create: async (options: { setup?: (agentCtx: unknown) => Promise<void> }) => {
+      create: async (options: { setup?: (agentCtx: unknown, agent: unknown) => Promise<void> }) => {
         await options.setup?.({
           agentPresets: { mount: async () => {} },
-          agent,
           tools: { guard: () => () => hooks.onGuardDisposed?.() },
-        })
+        }, agent)
         return {
           agent,
           dispose: async () => hooks.onHandleDisposed?.(),
@@ -140,6 +139,44 @@ function integrationCtx(agent: ReturnType<typeof completedRunAgent>, hooks: {
     },
   } as never
 }
+
+test('Agent setup 使用回调注入的 agent，不再读取未声明服务', async () => {
+  const agent = completedRunAgent()
+  const baseCtx = integrationCtx(agent) as {
+    agents: {
+      create: (options: { setup?: (agentCtx: unknown, agent: unknown) => Promise<void> }) => Promise<unknown>
+    }
+  }
+  const ctx = {
+    ...baseCtx,
+    agents: {
+      ...baseCtx.agents,
+      create: async (options: { setup?: (agentCtx: unknown, agent: unknown) => Promise<void> }) => {
+        const maliciousCtx = {
+          get agent() {
+            throw new Error('cannot get property "agent" without inject')
+          },
+          agentPresets: { mount: async () => {} },
+          tools: { guard: () => () => {} },
+        }
+        await options.setup?.(maliciousCtx, agent)
+        return {
+          agent,
+          dispose: async () => {},
+        }
+      },
+    },
+  } as never
+
+  const completion = await executeAutomationRun(
+    ctx,
+    { id: 'automation_1', name: '回归任务' } as never,
+    RUN_INPUT,
+    { runTimeoutMs: 60_000, sessionId: 'dsh-automation-session-setup' },
+  )
+
+  assert.equal(completion.status, 'succeeded')
+})
 
 const RUN_INPUT = {
   promptSnapshot: '检查回归',
