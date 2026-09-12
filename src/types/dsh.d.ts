@@ -8,6 +8,9 @@ declare module '@deepseek-ai/cordis' {
     readonly agentPresets: any
     readonly permissionPresets: import('../permission-presets.ts').PermissionPresetService
     readonly sessions: any
+    readonly sessionPersistence?: {
+      list?(): Promise<readonly { readonly header: { readonly id: string } }[]>
+    }
     readonly sessionTitle?: { rename(session: unknown, title: string): unknown }
     readonly workspaceRegistry: any
     readonly storageDomain: any

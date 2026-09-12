@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createDefinition } from '../src/domain.ts'
-import { AutomationService, type AutomationConfig } from '../src/service.ts'
+import { AutomationService, AUTOMATION_SESSION_PREFIX, type AutomationConfig } from '../src/service.ts'
 import type { AutomationDefinition, AutomationRun } from '../src/types.ts'
 
 const permissionPresets = {
@@ -364,7 +364,7 @@ test('持久化日志仍存在时，Agent 释放事件不会摘掉历史会话�
   }
   const { service, runs } = await makeService({ definitions: [definition], runs: [run] }, {}, {
     sessions: { list: () => [] },
-    sessionPersistence: { list: async () => [{ id: 'persisted-session' }] },
+    sessionPersistence: { list: async () => [{ header: { id: 'persisted-session' } }] },
   })
   await service.forgetSession('persisted-session')
   assert.equal(runs.get(run.id)?.sessionId, 'persisted-session')
@@ -587,8 +587,8 @@ test('启动时对宿主已不存在的 Session 摘掉 run.sessionId', async () 
   const ctx = {
     permissionPresets,
     logger: { warn() {} },
-    get(name: string) { return name === 'sessionPersistence' ? { async list() { return [{ id: 'other' }] } } : undefined },
     sessions: { list() { return [] } },
+    sessionPersistence: { async list() { return [{ header: { id: 'other' } }] } },
     storageDomain: {
       async open() {
         return {
@@ -608,6 +608,62 @@ test('启动时对宿主已不存在的 Session 摘掉 run.sessionId', async () 
   const ghost = runs.get('run_ghost')
   assert.equal(ghost?.status, 'succeeded')
   assert.equal(ghost?.sessionId, null)
+})
+
+test('启动时保留已落盘的自动化 Session，即使它当前不在 live 列表', async () => {
+  const definition = sampleDefinition()
+  const definitions = new MemoryTable<AutomationDefinition>()
+  const runs = new MemoryTable<AutomationRun>()
+  await definitions.put(definition.id, definition)
+  await runs.put('run_stored', {
+    version: 1,
+    id: 'run_stored',
+    automationId: definition.id,
+    definitionRevision: 1,
+    occurrenceKey: 'stored',
+    trigger: 'schedule',
+    scheduledFor: '2026-08-16T00:30:00.000Z',
+    status: 'succeeded',
+    promptSnapshot: definition.prompt,
+    targetSnapshot: {
+      workspaceId: definition.workspaceId,
+      cwd: definition.cwd,
+      agentPreset: definition.agentPreset,
+      provider: null,
+      model: null,
+      permissionPreset: 'read-only',
+    },
+    sessionId: `${AUTOMATION_SESSION_PREFIX}stored`,
+    startedAt: '2026-08-16T00:30:00.000Z',
+    finishedAt: '2026-08-16T00:31:00.000Z',
+    summary: 'ok',
+    error: null,
+    unread: false,
+  })
+  const ctx = {
+    permissionPresets,
+    logger: { warn() {} },
+    sessionPersistence: { async list() { return [{ header: { id: `${AUTOMATION_SESSION_PREFIX}stored` } }] } },
+    sessions: { list() { return [] } },
+    storageDomain: {
+      async open() {
+        return {
+          name: 'dsh_automation',
+          table(name: string) { return name === 'definitions' ? definitions : runs },
+          async close() {},
+        }
+      },
+    },
+    agents: { get() { return undefined } },
+    workspaceRegistry: { async resolveByPath() { return { id: 'ws_1', title: 'demo', path: 'D:\\work\\demo' } } },
+    agentDefaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'v4' }) },
+    agentPresets: { composedPreset: () => 'standard' },
+  }
+  const service = await AutomationService.open(ctx as never, config())
+  Object.assign(service, { definitions, runs })
+
+  assert.equal(runs.get('run_stored')?.sessionId, `${AUTOMATION_SESSION_PREFIX}stored`)
+  await service.dispose()
 })
 
 test('forgetSession 释放保活句柄并摘掉运行记录的 sessionId', async () => {

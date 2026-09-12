@@ -536,25 +536,16 @@ export class AutomationService {
 
   private async knownSessionIds(): Promise<Set<string> | undefined> {
     const live = this.ctx.sessions as { list?: () => readonly { readonly id: string }[] } | undefined
-    let directPersistence: { list?: () => Promise<readonly { readonly id: string }[]> } | undefined
-    try {
-      directPersistence = (this.ctx as Context & {
-        readonly sessionPersistence?: { list?: () => Promise<readonly { readonly id: string }[]> }
-      }).sessionPersistence
-    } catch {
-      // Cordis throws when reading an uninjected service property directly.
-    }
-    const persistence = directPersistence
-      ?? (this.ctx.get?.('sessionPersistence') as { list?: () => Promise<readonly { readonly id: string }[]> } | undefined)
-    const canListLive = typeof live?.list === "function"
-    const canListStored = typeof persistence?.list === "function"
+    const persistence = this.ctx.sessionPersistence
+    const canListLive = typeof live?.list === 'function'
+    const canListStored = typeof persistence?.list === 'function'
     if (!canListLive && !canListStored) return undefined
     const ids = new Set<string>()
     if (canListLive && live?.list !== undefined) {
       for (const session of live.list()) ids.add(String(session.id))
     }
     if (canListStored && persistence?.list !== undefined) {
-      for (const header of await persistence.list()) ids.add(String(header.id))
+      for (const snapshot of await persistence.list()) ids.add(String(snapshot.header.id))
     }
     return ids
   }
@@ -955,7 +946,7 @@ export class AutomationService {
   }
 
   private permissionPresets(): PermissionPresetService {
-    return (this.ctx as Context & { permissionPresets: PermissionPresetService }).permissionPresets
+    return this.ctx.permissionPresets
   }
 
   private requirePermission(input?: PermissionPreset): PermissionPreset {
@@ -1074,7 +1065,7 @@ async function collectModelOptions(ctx: Context): Promise<{
   }
 
   const current = ctx.agentDefaultModel?.currentSelection?.() ?? null
-  const llm = (ctx as Context & { llm?: {
+  const llm = ctx.llm as {
     listProviders?: () => readonly { id?: string; provider?: string; name?: string }[]
     listModels?: (provider: string) => Promise<readonly { id?: string; name?: string; description?: string }[]>
     resolveModelInfo?: (provider: string, model: string) => Promise<{
@@ -1084,7 +1075,7 @@ async function collectModelOptions(ctx: Context): Promise<{
         defaultEffort?: string
       }
     }>
-  } }).llm
+  } | undefined
   for (const item of llm?.listProviders?.() ?? []) {
     const provider = String(item.id ?? item.provider ?? '')
     if (provider === '') continue
