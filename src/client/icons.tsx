@@ -114,6 +114,18 @@ export function ChevronIcon(props: IconProps): JSX.Element {
   return <svg viewBox='0 0 14 14' width={props.width || 14} height={props.height || 14} fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' {...props}><path fill='currentColor' d='M4.25 2.828v8.344c0 .49.592.735.939.389l4.172-4.172a.55.55 0 0 0 0-.778L5.189 2.439c-.347-.347-.939-.101-.939.389Z' /></svg>
 }
 
+/**
+ * 官方 DSH ChevronDown 的本地副本（0.1.7 起宿主导出从 `IconChevronDownOutline14`
+ * 改名为 `IconChevronDownOutlineRegular`，这里自带一份避免跟随宿主改名崩掉整个侧栏）。
+ */
+export function ChevronDownIcon({ size = 14, className }: { readonly size?: number; readonly className?: string }): JSX.Element {
+  return (
+    <svg width={size} height={size} className={className} viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg' strokeWidth={1} aria-hidden='true'>
+      <path d='M4 6L7.29289 9.29289C7.68342 9.68342 8.31658 9.68342 8.70711 9.29289L12 6' stroke='currentColor' />
+    </svg>
+  )
+}
+
 export function EllipsisIcon(props: IconProps): JSX.Element {
   return <FillIcon {...props}><path fill='currentColor' d='M4.55146 8.00001C4.55146 8.63513 4.03659 9.15001 3.40146 9.15001C2.76634 9.15001 2.25146 8.63513 2.25146 8.00001C2.25146 7.36488 2.76634 6.85001 3.40146 6.85001C4.03659 6.85001 4.55146 7.36488 4.55146 8.00001Z' /><path fill='currentColor' d='M9.1476 8.00001C9.1476 8.63513 8.63273 9.15001 7.9976 9.15001C7.36248 9.15001 6.8476 8.63513 6.8476 8.00001C6.8476 7.36488 7.36248 6.85001 7.9976 6.85001C8.63273 6.85001 9.1476 7.36488 9.1476 8.00001Z' /><path fill='currentColor' d='M13.7486 8.00001C13.7486 8.63513 13.2338 9.15001 12.5986 9.15001C11.9635 9.15001 11.4486 8.63513 11.4486 8.00001C11.4486 7.36488 11.9635 6.85001 12.5986 6.85001C13.2338 6.85001 13.7486 7.36488 13.7486 8.00001Z' /></FillIcon>
 }

@@ -2,6 +2,12 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.3.6 — 2026-09-25
+
+- DSH 0.1.7 renamed the size-suffixed primitive icon exports (`IconEllipsisOutline16` → `IconEllipsisOutlineRegular`), so the four host icons the scheduled-task sidebar imported resolved to `undefined`. Rendering one threw during render, and the supervised `sidebar.workspaces` single slot retired its registration — the whole workspace region, project sessions included, went blank until a page reload. Those icons are now local copies in the plugin.
+- Give the scheduled-task sidebar its own error boundary: an internal crash falls back to the native workspace tree instead of tearing down the host registration, and rendering an undeclared host child slot (`sidebar.channels`) no longer throws.
+- Add a regression test that forbids importing size-suffixed host icons and pins the fallback boundary in place.
+
 ## 0.3.3 — 2026-09-08
 
 - Read automation session event logs through the API supported by both older and newer DSH Session runtimes, preventing completed runs from being marked failed with `events is not iterable`.

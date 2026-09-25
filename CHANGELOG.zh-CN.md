@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md)
 
+## 0.3.6 — 2026-09-25
+
+- DSH 0.1.7 把带尺寸后缀的图标导出改名（`IconEllipsisOutline16` → `IconEllipsisOutlineRegular`），定时任务侧栏引用的四个宿主机图标因此变成 `undefined`；渲染到它们时抛错，宿主随即注销 `sidebar.workspaces` 单槽注册，工作区连同项目会话一起变空白，只有刷新页面才能恢复。这四个图标现在改为插件自带副本。
+- 定时任务侧栏补上自己的错误边界：内部崩溃只回退到官方任务树，不再连累宿主注册；渲染宿主未声明的子槽（`sidebar.channels`）也不会再抛错。
+- 新增回归测试：禁止再从宿主导入带尺寸后缀的图标，并锁定兜底边界。
+
 ## 0.3.3 — 2026-09-08
 
 - 兼容新旧 DSH Session 运行时的事件日志 API，避免任务实际完成但在汇总结果时因 `events is not iterable` 被标记为失败。

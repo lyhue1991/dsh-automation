@@ -35,6 +35,22 @@ class OfficialTreeGuard extends Component<{ fallback: ReactNode; children: React
   }
 }
 
+/**
+ * 定时页签自身的兜底边界。包裹层顶掉的是宿主 `sidebar.workspaces` 单槽注册项：
+ * 这里一旦让错误冒泡，DSH 会注销整条注册（单槽 abdication），工作区与项目会话会
+ * 一起变空白。所以自动化 UI 内部崩溃只回退到官方任务树。
+ */
+class AutomationShellGuard extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } { return { failed: true } }
+  override componentDidCatch(error: unknown): void {
+    console.warn('[dsh-automation] scheduled sidebar crashed; falling back to the native workspace tree', error)
+  }
+  override render(): ReactNode {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
+}
+
 export function ScheduleRail({
   t,
   runtime,
@@ -182,8 +198,28 @@ export function NativeScheduleShell({
       </OfficialTreeGuard>
     )
   }
+  /**
+   * 宿主 slot 只能渲染本注册项声明过的子槽；未声明时 `renderSlot` 会同步抛错，
+   * 之前这类错误会顺着边界冒泡注销整条工作区注册。渲染失败只让该页签留空。
+   */
+  const renderHostSlot = (name: string, props: Record<string, unknown>): ReactNode => {
+    if (renderSlot === undefined) return null
+    try {
+      return renderSlot(name, props)
+    } catch (error) {
+      console.warn(`[dsh-automation] sidebar slot '${name}' is not renderable by this host`, error)
+      return null
+    }
+  }
 
-  if (wide === false) return <>{renderOfficial(filteredOfficialProps)}</>
+  if (wide === false) {
+    // 收起态只有官方任务树；过滤后的 props 让宿主树崩溃时，退回未过滤 props 而不是注销整条注册。
+    return (
+      <AutomationShellGuard fallback={renderOfficial(rawOfficialProps)}>
+        {renderOfficial(filteredOfficialProps)}
+      </AutomationShellGuard>
+    )
+  }
 
   const foreignTabs = extraTabs.filter(item => item.id !== 'schedule')
   const visibleTab = resolveVisibleSidebarTab({
@@ -195,34 +231,38 @@ export function NativeScheduleShell({
   const scheduleBody = hostedSchedule === undefined
     ? <NativeScheduleSessionList t={t} runtime={runtime} {...(openSession === undefined ? {} : { openSession })} {...(useSessions === undefined ? {} : { useSessions })} {...(useWorkspaces === undefined ? {} : { useWorkspaces })} />
     : hostedSchedule.render({ ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true }) as ReactNode
+  // 自动化页签崩溃时退回官方任务树（未过滤 props），保持工作区可用。
+  const nativeFallback = <div className="dsh-st-official-tree">{renderOfficial(rawOfficialProps)}</div>
   return (
-    <div className="dsh-st-shell-rail">
-      <div className="dsh-st-shell-tabs" role="tablist" aria-label={t('sidebar.tabs')}>
-        <button type="button" role="tab" aria-selected={visibleTab === 'tasks'} className={visibleTab === 'tasks' ? 'is-on' : undefined} onClick={() => setTab('tasks')}>
-          {t('sidebar.tasksTab')}
-        </button>
-        {foreignTabs.map(item => (
-          <button key={item.id} type="button" role="tab" aria-selected={visibleTab === item.id} className={visibleTab === item.id ? 'is-on' : undefined} onClick={() => setTab(item.id)}>
-            {item.label}
+    <AutomationShellGuard fallback={nativeFallback}>
+      <div className="dsh-st-shell-rail">
+        <div className="dsh-st-shell-tabs" role="tablist" aria-label={t('sidebar.tabs')}>
+          <button type="button" role="tab" aria-selected={visibleTab === 'tasks'} className={visibleTab === 'tasks' ? 'is-on' : undefined} onClick={() => setTab('tasks')}>
+            {t('sidebar.tasksTab')}
           </button>
-        ))}
-        {channelsReady && foreignTabs.every(item => item.id !== 'channels') && (
-          <button type="button" role="tab" aria-selected={visibleTab === 'channels'} className={visibleTab === 'channels' ? 'is-on' : undefined} onClick={() => setTab('channels')}>
-            {t('sidebar.channelsTab')}
+          {foreignTabs.map(item => (
+            <button key={item.id} type="button" role="tab" aria-selected={visibleTab === item.id} className={visibleTab === item.id ? 'is-on' : undefined} onClick={() => setTab(item.id)}>
+              {item.label}
+            </button>
+          ))}
+          {channelsReady && foreignTabs.every(item => item.id !== 'channels') && (
+            <button type="button" role="tab" aria-selected={visibleTab === 'channels'} className={visibleTab === 'channels' ? 'is-on' : undefined} onClick={() => setTab('channels')}>
+              {t('sidebar.channelsTab')}
+            </button>
+          )}
+          <button type="button" role="tab" aria-selected={visibleTab === 'schedule'} className={visibleTab === 'schedule' ? 'is-on' : undefined} onClick={() => setTab('schedule')}>
+            {t('sidebar.tab')}
           </button>
-        )}
-        <button type="button" role="tab" aria-selected={visibleTab === 'schedule'} className={visibleTab === 'schedule' ? 'is-on' : undefined} onClick={() => setTab('schedule')}>
-          {t('sidebar.tab')}
-        </button>
+        </div>
+        {visibleTab === 'schedule'
+          ? <div className="dsh-st-shell-body">{scheduleBody}</div>
+          : foreignTabs.find(item => item.id === visibleTab) !== undefined
+            ? <div className="dsh-st-shell-body">{foreignTabs.find(item => item.id === visibleTab)?.render({ ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true }) as ReactNode}</div>
+            : visibleTab === 'channels'
+              ? <div className="dsh-st-shell-body">{renderHostSlot('sidebar.channels', { ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true, skin: 'native' })}</div>
+              : <div className="dsh-st-official-tree">{renderOfficial(filteredOfficialProps)}</div>}
       </div>
-      {visibleTab === 'schedule'
-        ? <div className="dsh-st-shell-body">{scheduleBody}</div>
-        : foreignTabs.find(item => item.id === visibleTab) !== undefined
-          ? <div className="dsh-st-shell-body">{foreignTabs.find(item => item.id === visibleTab)?.render({ ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true }) as ReactNode}</div>
-          : visibleTab === 'channels'
-            ? <div className="dsh-st-shell-body">{renderSlot?.('sidebar.channels', { ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true, skin: 'native' })}</div>
-            : <div className="dsh-st-official-tree">{renderOfficial(filteredOfficialProps)}</div>}
-    </div>
+    </AutomationShellGuard>
   )
 }
 

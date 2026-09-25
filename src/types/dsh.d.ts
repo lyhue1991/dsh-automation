@@ -62,6 +62,11 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   export function Button(props: { readonly variant?: string; readonly className?: string; readonly disabled?: boolean; readonly onClick?: () => void; readonly children?: ReactNode }): JSX.Element
   export function Menu(props: { readonly open: boolean; readonly onClose: () => void; readonly items: readonly MenuEntry[]; readonly onSelect: (id: string) => void; readonly anchor: ReactNode; readonly portal?: boolean; readonly dense?: boolean; readonly compact?: boolean }): JSX.Element
   export function Modal(props: { readonly open: boolean; readonly onClose: () => void; readonly closeLabel: string; readonly title: string; readonly footer?: ReactNode; readonly children?: ReactNode }): JSX.Element
+  /**
+   * 编号图标只在 DSH ≤0.1.6 存在；0.1.7 起改名为 `Icon*OutlineRegular/Medium`，
+   * 旧名字会解析成 `undefined`，渲染时抛错并让宿主注销整个 sidebar.workspaces
+   * 注册项（工作区变空白）。需要图标请在 ./client/icons.tsx 里自带副本。
+   */
   export function IconArchiveOutline20(props: { readonly size?: number }): JSX.Element
   export function IconEllipsisOutline16(props: { readonly size?: number }): JSX.Element
   export function IconSettingsOutline16(props: { readonly size?: number }): JSX.Element

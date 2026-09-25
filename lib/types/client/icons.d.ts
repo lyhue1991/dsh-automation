@@ -25,6 +25,14 @@ export declare function FolderOpenIcon(props: IconProps): JSX.Element;
 export declare function PlayOutlineIcon(props: IconProps): JSX.Element;
 export declare function TreeCornerIcon(props: IconProps): JSX.Element;
 export declare function ChevronIcon(props: IconProps): JSX.Element;
+/**
+ * 官方 DSH ChevronDown 的本地副本（0.1.7 起宿主导出从 `IconChevronDownOutline14`
+ * 改名为 `IconChevronDownOutlineRegular`，这里自带一份避免跟随宿主改名崩掉整个侧栏）。
+ */
+export declare function ChevronDownIcon({ size, className }: {
+    readonly size?: number;
+    readonly className?: string;
+}): JSX.Element;
 export declare function EllipsisIcon(props: IconProps): JSX.Element;
 export declare function PencilIcon(props: IconProps): JSX.Element;
 export declare function BranchIcon(props: IconProps): JSX.Element;

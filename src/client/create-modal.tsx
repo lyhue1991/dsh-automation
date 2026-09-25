@@ -12,9 +12,9 @@ import {
   type ScheduleKind,
 } from './helpers.js'
 import { shouldConfirmFullAccess } from './create-modal-logic.js'
-import { FolderIcon, PresetIcon, ShieldIcon, SparkleIcon } from './icons.js'
+import { CheckOutlineIcon, ChevronDownIcon, FolderIcon, PresetIcon, ShieldIcon, SparkleIcon } from './icons.js'
 import { MenuHostProvider, MenuPanel, MenuPopup, MenuRow, MenuSelect, useMenuState } from './menu.js'
-import { IconCheckOutline16, IconChevronDownOutline14, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
+import { RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
 const KINDS: readonly ScheduleKind[] = ['once', 'interval', 'hourly', 'daily', 'weekly', 'monthly', 'custom']
@@ -406,7 +406,7 @@ function ModelPicker({
       >
         <span>{trigger}</span>
         {effortLabel !== undefined && <span className="dsh-st-model-trigger-effort">{effortLabel}</span>}
-        <IconChevronDownOutline14 className={`dsh-st-model-trigger-chevron${menu.open ? ' is-open' : ''}`} />
+        <ChevronDownIcon className={`dsh-st-model-trigger-chevron${menu.open ? ' is-open' : ''}`} />
       </button>
       <MenuPopup open={menu.open} anchor={menu.root} menuRef={menu.menu} up end className="dsh-st-model-select-menu is-up is-end" ariaLabel={modelT('menu.aria')}>
         {pane === 'root' && (
@@ -455,7 +455,7 @@ function ModelPicker({
                     <span className="dsh-st-model-name">{item.label}</span>
                     {item.description !== undefined && <span className="dsh-st-model-description">{item.description}</span>}
                   </span>
-                  <span className="dsh-st-model-check">{value === modelKey && <IconCheckOutline16 />}</span>
+                  <span className="dsh-st-model-check">{value === modelKey && <CheckOutlineIcon width={16} height={16} />}</span>
                 </button>
               )
             })}
@@ -475,7 +475,7 @@ function ModelPicker({
                 onClick={() => selectEffort('none')}
               >
                 <span className="dsh-st-model-option-copy"><span className="dsh-st-model-name">{modelT('effort.providerDefault')}</span></span>
-                <span className="dsh-st-model-check">{reasoningEffort === 'none' && <IconCheckOutline16 />}</span>
+                <span className="dsh-st-model-check">{reasoningEffort === 'none' && <CheckOutlineIcon width={16} height={16} />}</span>
               </button>
             )}
             {reasoning.efforts.map(item => (
@@ -491,7 +491,7 @@ function ModelPicker({
                   <span className="dsh-st-model-name">{item.name}</span>
                   {item.description !== undefined && <span className="dsh-st-model-description">{item.description}</span>}
                 </span>
-                <span className="dsh-st-model-check">{effectiveEffort === item.id && <IconCheckOutline16 />}</span>
+                <span className="dsh-st-model-check">{effectiveEffort === item.id && <CheckOutlineIcon width={16} height={16} />}</span>
               </button>
             ))}
             {reasoning.efforts.length === 0 && reasoning.defaultEffort !== undefined && <div className="dsh-st-model-empty">{modelT('empty.efforts')}</div>}

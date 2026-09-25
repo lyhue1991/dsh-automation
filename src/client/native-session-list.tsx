@@ -2,8 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { createPortal } from 'react-dom'
 import {
   Button,
-  IconArchiveOutline20,
-  IconEllipsisOutline16,
   Menu,
   Modal,
   type MenuEntry,
@@ -332,7 +330,7 @@ function NativeScheduleGroupRow(props: {
     ...(canArchiveGroup
       ? [
           { type: 'separator' as const, id: 'archive-separator' },
-          { id: 'archive-group', label: t('session.archiveGroup'), icon: <IconArchiveOutline20 size={16} />, danger: true },
+          { id: 'archive-group', label: t('session.archiveGroup'), icon: <ArchiveIcon width={16} height={16} />, danger: true },
         ]
       : []),
   ]
@@ -373,7 +371,7 @@ function NativeScheduleGroupRow(props: {
             aria-label={t('session.groupActions', { name })}
             onMouseDown={(event) => { event.stopPropagation() }}
             onClick={(event) => { event.stopPropagation(); onMenuChange(!menuOpen) }}
-          ><IconEllipsisOutline16 size={16} /></button>}
+          ><EllipsisIcon width={16} height={16} /></button>}
         />
       </span>
       {hoverOpen && !menuOpen && typeof document !== 'undefined' && (
