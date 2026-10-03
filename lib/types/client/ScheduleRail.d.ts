@@ -7,12 +7,13 @@ export declare function ScheduleRail({ t, runtime, openSession, }: {
     readonly runtime: AutomationRuntime;
     readonly openSession?: (sessionId: string) => void;
 }): JSX.Element;
-export declare function NativeScheduleShell({ t, runtime, officialTree, hostProps, openSession, useSessions, useWorkspaces, renderSlot, hasChannels, subscribeChannels, tabRegistry, wide, }: {
+export declare function NativeScheduleShell({ t, runtime, officialTree, hostProps, openSession, archiveSession, useSessions, useWorkspaces, renderSlot, hasChannels, subscribeChannels, tabRegistry, wide, }: {
     readonly t: Translate;
     readonly runtime: AutomationRuntime;
     readonly officialTree?: ComponentType<any>;
     readonly hostProps?: Record<string, unknown>;
     readonly openSession?: (sessionId: string) => void;
+    readonly archiveSession?: (sessionId: string) => void | Promise<void>;
     readonly useSessions?: SessionSelector;
     readonly useWorkspaces?: WorkspaceSelector;
     readonly renderSlot?: (name: string, props?: Record<string, unknown>) => ReactNode;

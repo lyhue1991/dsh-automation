@@ -39,6 +39,6 @@ export declare function BranchIcon(props: IconProps): JSX.Element;
 /** Official DSH IconAgentPresetOutline16, kept local for older primitives versions. */
 export declare function PresetIcon({ width, height, ...props }: IconProps): JSX.Element;
 export declare function ArchiveIcon(props: IconProps): JSX.Element;
-/** 复刻官方任务树 running StateDot：3x3 像素绕圈。 */
+/** 复刻官方任务树 running StateDot（进行中）：慢速旋转的圆环轨道加呼吸弧线。 */
 export declare function RunningStateDot(): JSX.Element;
 export {};

@@ -373,6 +373,15 @@ function NativeScheduleGroupRow(props: {
             onClick={(event) => { event.stopPropagation(); onMenuChange(!menuOpen) }}
           ><EllipsisIcon width={16} height={16} /></button>}
         />
+        {canArchiveGroup && (
+          <button
+            type='button'
+            className='dsh-st-n-ico'
+            aria-label={t('session.archiveGroup')}
+            onMouseDown={(event) => { event.stopPropagation() }}
+            onClick={(event) => { event.stopPropagation(); onArchiveGroup() }}
+          ><ArchiveIcon width={14} height={14} /></button>
+        )}
       </span>
       {hoverOpen && !menuOpen && typeof document !== 'undefined' && (
         createPortal(
@@ -492,6 +501,15 @@ function NativeSessionRow(props: {
         <button type='button' className='dsh-st-n-ico' aria-label={t('session.moreActions', { title })} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onToggleMenu(event) }}>
           <EllipsisIcon width={16} height={16} />
         </button>
+        {archiveSession !== undefined && (
+          <button
+            type='button'
+            className='dsh-st-n-ico'
+            aria-label={t('session.archive')}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => { event.stopPropagation(); run(() => archiveSession?.(id)) }}
+          ><ArchiveIcon width={14} height={14} /></button>
+        )}
       </span>
       {menu}
     </div>

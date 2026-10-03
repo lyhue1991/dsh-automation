@@ -109,6 +109,7 @@ export function NativeScheduleShell({
   officialTree,
   hostProps,
   openSession,
+  archiveSession,
   useSessions,
   useWorkspaces,
   renderSlot,
@@ -122,6 +123,7 @@ export function NativeScheduleShell({
   readonly officialTree?: ComponentType<any>
   readonly hostProps?: Record<string, unknown>
   readonly openSession?: (sessionId: string) => void
+  readonly archiveSession?: (sessionId: string) => void | Promise<void>
   readonly useSessions?: SessionSelector
   readonly useWorkspaces?: WorkspaceSelector
   readonly renderSlot?: (name: string, props?: Record<string, unknown>) => ReactNode
@@ -229,7 +231,7 @@ export function NativeScheduleShell({
   })
   const hostedSchedule = extraTabs.find(item => item.id === 'schedule')
   const scheduleBody = hostedSchedule === undefined
-    ? <NativeScheduleSessionList t={t} runtime={runtime} {...(openSession === undefined ? {} : { openSession })} {...(useSessions === undefined ? {} : { useSessions })} {...(useWorkspaces === undefined ? {} : { useWorkspaces })} />
+    ? <NativeScheduleSessionList t={t} runtime={runtime} {...(openSession === undefined ? {} : { openSession })} {...(archiveSession === undefined ? {} : { archiveSession })} {...(useSessions === undefined ? {} : { useSessions })} {...(useWorkspaces === undefined ? {} : { useWorkspaces })} />
     : hostedSchedule.render({ ...(hostProps ?? {}), openSession, open: openSession, useSessions, wide: true }) as ReactNode
   // 自动化页签崩溃时退回官方任务树（未过滤 props），保持工作区可用。
   const nativeFallback = <div className="dsh-st-official-tree">{renderOfficial(rawOfficialProps)}</div>

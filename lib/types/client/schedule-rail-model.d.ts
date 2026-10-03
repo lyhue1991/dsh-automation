@@ -1,6 +1,12 @@
 /** 侧栏定时树与原生任务列表的纯函数，供组件和单测共用。 */
+import type { ClientContext } from './contracts.js';
 export declare const AUTOMATION_SESSION_PREFIX = "dsh-automation-session-";
 export declare const NATIVE_SIDEBAR_TAB_KEY = "dsh-automation.sidebar-tab";
+/**
+ * 宿主工作区插槽往往不透传 archiveSession（官方侧栏靠 slot 注入归档能力），
+ * 因此在宿主缺省时回退到 ctx.uiWorkspace 的官方会话归档接口。
+ */
+export declare function resolveArchiveSession(ctx: ClientContext, props: object): ((sessionId: string) => void | Promise<void>) | undefined;
 export interface ScheduleRailSession {
     readonly id: string;
     readonly running: boolean;
@@ -94,9 +100,6 @@ export declare function resolveVisibleSidebarTab(input: {
     readonly extraTabIds: readonly string[];
 }): string;
 export declare function tabForSessionId(sessionId: string | null | undefined, scheduledIds?: ReadonlySet<string>): NativeSidebarTab | undefined;
-export declare function occupantLooksLikeCodexUi(value: unknown): boolean;
-export declare function slotOccupantName(item: unknown): string;
-export declare function hasCodexUiSidebar(entries: readonly unknown[] | undefined): boolean;
 export interface SessionListState {
     readonly ids?: readonly string[];
     readonly byId?: Record<string, NativeSessionLike>;

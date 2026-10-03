@@ -21,6 +21,8 @@ export interface Config {
   readonly misfireGraceMinutes?: number
   readonly historyLimit?: number
   readonly liveSessionLimit?: number
+  /** 不挂载管理工具的 agent preset id 列表；极简模式默认不提供自动化工具。 */
+  readonly excludedAgentPresets?: string[]
 }
 
 export const Config = z.object({
@@ -29,6 +31,7 @@ export const Config = z.object({
   misfireGraceMinutes: z.number().step(1).min(0).max(10_080).default(15),
   historyLimit: z.number().step(1).min(1).max(5_000).default(200),
   liveSessionLimit: z.number().step(1).min(0).max(1_000).default(20),
+  excludedAgentPresets: z.array(z.string()).default(['minimal']),
 })
 
 const MUTATING_TOOLS = new Set([
@@ -83,6 +86,27 @@ export function humanApprovalReason(toolName: string, args?: unknown): string {
     : 'This creates or expands unattended future work. Review the task prompt, schedule, workspace, and permission boundary before approving.'
 }
 
+/**
+ * 读取一个 agent 当前实际运行的 agent preset id。
+ *
+ * 优先读 live scope（`AgentPresets.composedPreset`），它对尚未写入
+ * session header 的 agent（例如 header 还在构造中的子 agent）也能回答；
+ * 回退到 session header 的创建期记录。两者都没有（未按 preset 组合的
+ * 部署，如 ACP/headless）返回 undefined，此时不排除任何 agent。
+ */
+export function composedAgentPresetId(
+  agentPresets: { composedPreset?: (agentCtx: unknown) => string | undefined } | undefined,
+  agent: {
+    readonly ctx?: unknown
+    readonly session?: { readonly header?: { readonly agentPreset?: string } }
+  },
+): string | undefined {
+  const live = agentPresets?.composedPreset?.(agent.ctx)
+  if (typeof live === 'string' && live !== '') return live
+  const header = agent.session?.header?.agentPreset
+  return typeof header === 'string' && header !== '' ? header : undefined
+}
+
 export function mountAutomationRpc(ctx: Context, service: AutomationService): void {
   const dynamicContext = ctx as DynamicInjectionContext
   dynamicContext.inject(['webServer'], webCtx => {
@@ -110,12 +134,20 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
     let stopDisposed = () => {}
     let stopApproval = () => {}
     let stopPrompt = () => {}
+    let stopPresetSelected = () => {}
     let stopSessionGone = () => {}
+    const excludedPresets = new Set(config.excludedAgentPresets)
+    const presetOf = (agent: any): string | undefined =>
+      composedAgentPresetId(ctx.agentPresets as never, agent)
+    const isExcluded = (agent: any): boolean => {
+      const preset = presetOf(agent)
+      return preset !== undefined && excludedPresets.has(preset)
+    }
     const cleanup = async (): Promise<void> => {
       if (cleaned) return
       cleaned = true
       alive = false
-      for (const stop of [stopCreated, stopDisposed, stopApproval, stopPrompt, stopSessionGone]) {
+      for (const stop of [stopCreated, stopDisposed, stopApproval, stopPrompt, stopPresetSelected, stopSessionGone]) {
         try { stop() } catch (error: unknown) {
           ctx.logger.warn(`dsh-automation: lifecycle cleanup failed: ${String(error)}`)
         }
@@ -137,6 +169,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
         if (!alive || agentTools.has(agent)
           || service.ownsSession(String(agent.id), readSessionEvents(agent.session, 0))) return
         if (!ctx.agents.roots().includes(agent)) return
+        if (isExcluded(agent)) return
         const dispose = agent.ctx.effect(
           () => registerAutomationTools(service, agent),
           'dsh-automation: management tools',
@@ -150,6 +183,26 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
       })
       stopDisposed = ctx.on('agent/disposed', ({ agent }: any) => {
         agentTools.delete(agent)
+        return Promise.resolve()
+      })
+      // 空白会话可以在开始前切换 preset（agent-preset/selected）；此时
+      // 之前注册的工具要拆掉、被排除 preset 的工具要补挂，保持“模型可见
+      // ⟺ 已注册”一致。切换到被排除的 preset 时立即卸载，反向切换则
+      // 通过 mountTools 的完整守卫重新挂载。
+      stopPresetSelected = ctx.on('agent-preset/selected', (sessionId: unknown, _agentPreset: unknown) => {
+        const agent = ctx.agents.roots().find((candidate: any) => String(candidate.id) === String(sessionId))
+        if (agent === undefined) return Promise.resolve()
+        if (isExcluded(agent)) {
+          const dispose = agentTools.get(agent)
+          if (dispose !== undefined) {
+            agentTools.delete(agent)
+            void Promise.resolve().then(dispose).catch((error: unknown) => {
+              ctx.logger.warn(`dsh-automation: preset switch cleanup failed: ${String(error)}`)
+            })
+          }
+        } else {
+          mountTools(agent)
+        }
         return Promise.resolve()
       })
       stopSessionGone = ctx.on('session/disposed', (session: { readonly id?: string }) => {

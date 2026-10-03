@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  composedAgentPresetId,
   humanApprovalReason,
   mountAutomationRpc,
   needsHumanApproval,
   sessionApprovalPolicy,
 } from '../src/index.ts'
+
+test('composedAgentPresetId 优先 live scope，其次 session header', () => {
+  const presets = { composedPreset: (ctx: unknown) => (ctx === 'live-ctx' ? 'minimal' : undefined) }
+  assert.equal(composedAgentPresetId(presets, { ctx: 'live-ctx' }), 'minimal')
+  assert.equal(composedAgentPresetId(presets, {
+    ctx: 'other',
+    session: { header: { agentPreset: 'standard' } },
+  }), 'standard')
+  assert.equal(composedAgentPresetId(undefined, {
+    session: { header: { agentPreset: 'minimal' } },
+  }), 'minimal')
+  assert.equal(composedAgentPresetId(presets, { ctx: 'other' }), undefined)
+  assert.equal(composedAgentPresetId(undefined, {}), undefined)
+})
 
 test('Full access 的 never 策略不强制 ask，避免静默拒绝', () => {
   const signal = new AbortController().signal

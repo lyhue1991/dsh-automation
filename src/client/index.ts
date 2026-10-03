@@ -12,11 +12,11 @@ import { applyPrefillToDom, peekChatPrefill, subscribeChatPrefill, takeChatPrefi
 import { createAutomationRuntime } from './runtime.js'
 import { NativeScheduleSessionList } from './native-session-list.js'
 import { NativeScheduleShell, ScheduleRail } from './ScheduleRail.js'
-import { AUTOMATION_SESSION_PREFIX, ensureOpenScheduledSession, hasCodexUiSidebar, pickWrappableWorkspacesEntry, resolveOfficialTreeComponent } from './schedule-rail-model.js'
+import { AUTOMATION_SESSION_PREFIX, ensureOpenScheduledSession, pickWrappableWorkspacesEntry, resolveArchiveSession, resolveOfficialTreeComponent } from './schedule-rail-model.js'
 import { installStyles } from './styles.js'
 
 export const name = 'dsh-automation-client'
-export const inject = ['slots', 'locale', 'connection', 'sessions']
+export const inject = ['slots', 'locale', 'connection', 'sessions', 'uiWorkspace']
 
 type MutableSlotEntry = {
   component?: ComponentType<any>
@@ -39,6 +39,7 @@ function isSessionSelector(value: unknown): value is SessionSelector {
 function isWorkspaceSelector(value: unknown): value is WorkspaceSelector {
   return typeof value === 'function'
 }
+
 
 function installSettingsNavIcon(labels: () => readonly string[]): () => void {
   const wanted = new Set(labels().map(item => item.trim()).filter(item => item !== ''))
@@ -143,6 +144,7 @@ export function apply(ctx: ClientContext): void {
               ? props.open as (id: string) => void
               : openSession
           const opener = createScheduledSessionOpener(ctx, runtime, hostOpen)
+          const archiveSession = resolveArchiveSession(ctx, props)
           return createElement(NativeScheduleSessionList, {
             t,
           permissionT,
@@ -153,7 +155,7 @@ export function apply(ctx: ClientContext): void {
             ...(isSessionSelector(props.useSessions) ? { useSessions: props.useSessions } : {}),
             ...(isWorkspaceSelector(props.useWorkspaces) ? { useWorkspaces: props.useWorkspaces } : {}),
             ...(typeof props.renameSession === 'function' ? { renameSession: props.renameSession as any } : {}),
-            ...(typeof props.archiveSession === 'function' ? { archiveSession: props.archiveSession as any } : {}),
+            ...(archiveSession === undefined ? {} : { archiveSession }),
             ...(typeof props.deleteSession === 'function' ? { deleteSession: props.deleteSession as any } : {}),
             ...(typeof props.forkSession === 'function' ? { forkSession: props.forkSession as any } : {}),
           })
@@ -185,10 +187,6 @@ export function apply(ctx: ClientContext): void {
       if (syncing) return
       syncing = true
       try {
-        if (hasCodexUiSidebar(readSlotEntries(ctx, 'sidebar'))) {
-          unwrap()
-          return
-        }
         const entries = readSlotEntries(ctx, 'sidebar.workspaces')
         const occupant = pickWrappableWorkspacesEntry(entries) as MutableSlotEntry | undefined
         const current = occupant?.component
@@ -208,11 +206,13 @@ export function apply(ctx: ClientContext): void {
         attachNativeTabRegistry(occupant, registry)
         function AutomationNativeWorkspaceShell(innerProps: NativeSwitcherProps): JSX.Element | null {
           const openSession = createScheduledSessionOpener(ctx, runtime, innerProps.openSession ?? innerProps.open)
+          const archiveSession = resolveArchiveSession(ctx, innerProps)
           return createElement(NativeScheduleShell, {
             t,
             runtime,
             hostProps: innerProps as Record<string, unknown>,
             openSession,
+            ...(archiveSession === undefined ? {} : { archiveSession }),
             tabRegistry: registry,
             ...(innerProps.wide === undefined ? {} : { wide: innerProps.wide }),
             hasChannels: () => slotHasEntries(ctx, 'sidebar.channels'),

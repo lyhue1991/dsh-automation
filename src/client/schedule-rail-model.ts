@@ -1,7 +1,31 @@
 /** 侧栏定时树与原生任务列表的纯函数，供组件和单测共用。 */
 
+import type { ClientContext } from './contracts.js'
+
 export const AUTOMATION_SESSION_PREFIX = 'dsh-automation-session-'
 export const NATIVE_SIDEBAR_TAB_KEY = 'dsh-automation.sidebar-tab'
+
+/**
+ * 宿主工作区插槽往往不透传 archiveSession（官方侧栏靠 slot 注入归档能力），
+ * 因此在宿主缺省时回退到 ctx.uiWorkspace 的官方会话归档接口。
+ */
+export function resolveArchiveSession(
+  ctx: ClientContext,
+  props: object,
+): ((sessionId: string) => void | Promise<void>) | undefined {
+  const hostArchive = (props as Record<string, unknown>).archiveSession
+  if (typeof hostArchive === 'function') return hostArchive as (sessionId: string) => void | Promise<void>
+  let workspace: ClientContext['uiWorkspace']
+  try {
+    workspace = ctx.uiWorkspace
+  } catch {
+    return undefined
+  }
+  if (workspace === undefined) return undefined
+  const archive = workspace.archiveSession
+  if (typeof archive !== 'function') return undefined
+  return (sessionId) => workspace.archiveSession(sessionId)
+}
 
 export interface ScheduleRailSession {
   readonly id: string
@@ -261,33 +285,6 @@ export function tabForSessionId(sessionId: string | null | undefined, scheduledI
   return undefined
 }
 
-export function occupantLooksLikeCodexUi(value: unknown): boolean {
-  return /dsh-codex-ui|michengai-codex-ui|michengai\.codexUi|codex-ui/i.test(String(value ?? ''))
-}
-
-export function slotOccupantName(item: unknown): string {
-  const record = item as {
-    options?: { locale?: unknown; id?: unknown; name?: unknown; registrant?: unknown }
-    component?: { displayName?: unknown; name?: unknown }
-    id?: unknown
-    name?: unknown
-  } | undefined
-  return String(
-    record?.options?.locale
-    ?? record?.options?.id
-    ?? record?.options?.name
-    ?? record?.options?.registrant
-    ?? record?.component?.displayName
-    ?? record?.component?.name
-    ?? record?.id
-    ?? record?.name
-    ?? '',
-  )
-}
-
-export function hasCodexUiSidebar(entries: readonly unknown[] | undefined): boolean {
-  return (entries ?? []).some(item => occupantLooksLikeCodexUi(slotOccupantName(item)))
-}
 
 export interface SessionListState {
   readonly ids?: readonly string[]

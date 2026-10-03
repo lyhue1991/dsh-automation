@@ -42,6 +42,12 @@ export interface ClientContext {
     connection: {
         readonly rpc: ClientRpc;
     };
+    uiWorkspace?: {
+        archiveSession(sessionId: string, options?: {
+            readonly stopActivity?: boolean;
+        }): Promise<void>;
+        unarchiveSession(sessionId: string): Promise<void>;
+    };
     sessions?: {
         open(id: string): void;
         refresh?: () => Promise<void>;

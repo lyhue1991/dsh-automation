@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { resolveArchiveSession } from '../src/client/schedule-rail-model.ts'
 import {
   AUTOMATION_SESSION_PREFIX,
   collectScheduledSessionIds,
@@ -13,7 +14,6 @@ import {
   sessionUpdatedAtIso,
   ensureOpenScheduledSession,
   openScheduledSession,
-  hasCodexUiSidebar,
   isNativeTaskSession,
   readNativeSidebarTab,
   filterTaskSessionState,
@@ -129,14 +129,12 @@ test('native task list filters im, subagent and automation sessions', () => {
   ])
 })
 
-test('native tabs follow session prefixes and detect Codex UI sidebar', () => {
+test('native tabs follow session prefixes', () => {
   assert.equal(readNativeSidebarTab('schedule'), 'schedule')
   assert.equal(readNativeSidebarTab('nope'), 'tasks')
   assert.equal(tabForSessionId(AUTOMATION_SESSION_PREFIX + 'abc'), 'schedule')
   assert.equal(tabForSessionId('im:wecom:1'), 'channels')
   assert.equal(tabForSessionId('chat-1'), undefined)
-  assert.equal(hasCodexUiSidebar([{ options: { locale: 'michengai.codexUi' } }]), true)
-  assert.equal(hasCodexUiSidebar([{ options: { locale: 'sidebar' } }]), false)
 })
 
 test('过滤结果必须保持同一引用，避免任务页卡死', () => {
@@ -400,6 +398,21 @@ test('会话悬停预览卡贴在行右侧，避免挡住列表', () => {
   const style = nativeSessionHoverStyle({ right: 240, top: 80 }, { width: 200, height: 90 }, { width: 1000, height: 800 })
   assert.equal(style.left, '248px')
   assert.equal(style.top, '80px')
+})
+
+test('归档入口在宿主缺省时回退到 ctx.uiWorkspace', async () => {
+  const host = (id: string) => { archivedIds.push('host:' + id) }
+  const archivedIds: string[] = []
+  const workspace = {
+    archiveSession: (id: string) => { archivedIds.push('ctx:' + id) },
+    unarchiveSession: () => Promise.resolve(),
+  }
+  assert.equal(resolveArchiveSession({ uiWorkspace: workspace } as never, { archiveSession: host }), host)
+  assert.equal(resolveArchiveSession({} as never, { archiveSession: host }), host)
+  await resolveArchiveSession({ uiWorkspace: workspace } as never, {})?.('sess-1')
+  assert.deepEqual(archivedIds, ['ctx:sess-1'])
+  assert.equal(resolveArchiveSession({} as never, {}), undefined)
+  assert.equal(resolveArchiveSession({ uiWorkspace: {} } as never, {}), undefined)
 })
 
 
