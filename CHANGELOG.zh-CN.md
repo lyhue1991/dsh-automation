@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md)
 
+## 0.4.0 — 2026-10-03
+
+- 侧栏不再依赖 `dsh-codex-ui`：直接包裹官方工作区任务树，"任务 / 定时任务"页签与官方搜索、工作区菜单共存；相关探测与降级逻辑一并移除。
+- 定时任务行内正在进行状态改用与官方一致的转圈动画（StateDot 旋转 + 呼吸弧），替换旧的像素追逐点，并随系统减弱动效设置降级。
+- 定时会话行与分组标题新增快捷归档按钮，无需展开"⋯"菜单即可归档。宿主不透传 `archiveSession` 时回退调用官方 `ctx.uiWorkspace.archiveSession`；`uiWorkspace` 已加入客户端 inject 声明，且读取失败时静默降级，避免未声明的 ctx 属性抛错注销整个 `sidebar.workspaces` 槽位。
+- 新增 `excludedAgentPresets` 配置（默认 `['minimal']`）：使用极简 preset 的 agent 不再挂载自动化管理工具。
+
 ## 0.3.6 — 2026-09-25
 
 - DSH 0.1.7 把带尺寸后缀的图标导出改名（`IconEllipsisOutline16` → `IconEllipsisOutlineRegular`），定时任务侧栏引用的四个宿主机图标因此变成 `undefined`；渲染到它们时抛错，宿主随即注销 `sidebar.workspaces` 单槽注册，工作区连同项目会话一起变空白，只有刷新页面才能恢复。这四个图标现在改为插件自带副本。

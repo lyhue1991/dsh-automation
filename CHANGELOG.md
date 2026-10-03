@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.4.0 — 2026-10-03
+
+- The sidebar no longer depends on `dsh-codex-ui`: it wraps the official workspace tree directly, with the "Tasks / Scheduled tasks" tabs coexisting with the official search and workspace menus. The related probing and downgrading logic was removed.
+- The in-progress indicator on scheduled-task rows now uses the same rotating spinner as the official StateDot (track + breathing arc), replacing the old pixel-chase dots, and degrades with the system reduced-motion setting.
+- Scheduled session rows and group headers get a quick archive button, so archiving no longer requires opening the "⋯" menu. When the host does not pass `archiveSession` through, it falls back to the official `ctx.uiWorkspace.archiveSession`; `uiWorkspace` is now declared in the client inject list and its read is guarded, so an undeclared ctx property can no longer throw and retire the whole `sidebar.workspaces` slot.
+- New `excludedAgentPresets` config (default `['minimal']`): agents on excluded presets no longer mount the automation management tools.
+
 ## 0.3.6 — 2026-09-25
 
 - DSH 0.1.7 renamed the size-suffixed primitive icon exports (`IconEllipsisOutline16` → `IconEllipsisOutlineRegular`), so the four host icons the scheduled-task sidebar imported resolved to `undefined`. Rendering one threw during render, and the supervised `sidebar.workspaces` single slot retired its registration — the whole workspace region, project sessions included, went blank until a page reload. Those icons are now local copies in the plugin.
