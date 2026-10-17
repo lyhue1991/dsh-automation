@@ -43,7 +43,8 @@ declare module '@deepseek-ai/dsh-agent' {
 }
 
 declare module '@deepseek-ai/dsh-agent-default-model' {}
-declare module '@deepseek-ai/dsh-agent-presets' {}
+declare module '@deepseek-ai/dsh-agent-preset' {}
+declare module '@deepseek-ai/dsh-agent-preset-registry' {}
 declare module '@deepseek-ai/dsh-permission-presets' {}
 declare module '@deepseek-ai/dsh-client-connection' {}
 

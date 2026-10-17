@@ -2,6 +2,12 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.5.0 — 2026-10-18
+
+- Upgrade to DSH 0.2.x: peer dependencies now require `>=0.2.1-rc.2 <0.3.0`, dev dependencies are pinned to `0.2.1-rc.2`, and preset imports move from `dsh-agent-presets` to the split `dsh-agent-preset` + `dsh-agent-preset-registry` packages. The `agentPresets` service surface (mount/list/defaultId/composedPreset) is unchanged.
+- The plugin now takes over scheduled tasks on new DSH builds: its profile patch disables the official `schedule` host service and the built-in "Scheduled tasks" settings page (`ui-schedule`). The official `tool-schedule` session tool stays declared but goes inert on its own — it only registers tools inside `ctx.inject(['schedule'])`, so with the service off it disappears from the tool catalog without an extra patch. Disable this plugin to restore the official schedule stack.
+- The automation system prompt shrinks to two routing sentences: schedule requests go to `automation_create`, and OS-level cron stays off the table unless asked. Parameter mapping, examples, and the Asia/Shanghai default moved into the `automation_create` tool description, where they belong. `schedule_create` is no longer referenced anywhere: with the official tool disabled, mentioning it could only tempt the model into calling a tool that no longer exists.
+
 ## 0.4.0 — 2026-10-03
 
 - The sidebar no longer depends on `dsh-codex-ui`: it wraps the official workspace tree directly, with the "Tasks / Scheduled tasks" tabs coexisting with the official search and workspace menus. The related probing and downgrading logic was removed.

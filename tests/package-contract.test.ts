@@ -40,13 +40,18 @@ test('包保持可安装的 DSH bundle 与 Web client 契约', async () => {
   assert.ok(manifest.files?.includes('cordis.patch.yml'))
   assert.equal(manifest.scripts?.prepare, undefined)
   assert.equal(manifest.peerDependencies?.react, '^18.2.0')
-  assert.equal(manifest.peerDependencies?.['@deepseek-ai/dsh-permission-presets'], '>=0.1.0-rc.5 <0.2.0')
+  assert.equal(manifest.peerDependencies?.['@deepseek-ai/dsh-permission-presets'], '>=0.2.1-rc.2 <0.3.0')
   assert.deepEqual(manifest.peerDependenciesMeta?.react, { optional: true })
 
   const patch = await readFile(new URL('cordis.patch.yml', root), 'utf8')
   assert.match(patch, /^\s*- insert:\s*$/m)
   assert.match(patch, /^\s*- id: dsh-automation\s*$/m)
   assert.match(patch, /^\s*name: ['"]@lyhue1991\/dsh-automation['"]\s*$/m)
+  assert.deepEqual(
+    [...patch.matchAll(/^- id: (schedule|ui-schedule)$/gm)].map(match => match[1]),
+    ['schedule', 'ui-schedule'],
+  )
+  assert.equal((patch.match(/disabled: true/g) ?? []).length, 2)
 
   await Promise.all([
     access(new URL('lib/index.js', root)),

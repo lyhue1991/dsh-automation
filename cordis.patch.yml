@@ -8,3 +8,17 @@
         misfireGraceMinutes: 15
         historyLimit: 200
         liveSessionLimit: 20
+
+# 禁用 DSH 内置的 schedule 服务与「自动化任务」页面，
+# 由本插件统一接管定时任务。若 id 不存在（未来版本改名），
+# patch 会告警并跳过，官方功能保持原样。
+#
+# 会话工具 tool-schedule 声明在 agent preset 的嵌套 plugins 里，
+# 无法按顶层 id patch；但官方实现只在 ctx.inject(['schedule'])
+# 回调内注册工具，schedule 服务关闭后它自动失效，无需额外处理。
+- id: schedule
+  name: '@deepseek-ai/dsh-schedule'
+  disabled: true
+- id: ui-schedule
+  name: '@deepseek-ai/dsh-client-ui-schedule'
+  disabled: true

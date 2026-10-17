@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md)
 
+## 0.5.0 — 2026-10-18
+
+- 兼容升级到 DSH 0.2.x：peer 依赖要求 `>=0.2.1-rc.2 <0.3.0`，dev 依赖钉在 `0.2.1-rc.2`，preset 导入从 `dsh-agent-presets` 迁移到拆分后的 `dsh-agent-preset` + `dsh-agent-preset-registry`。`agentPresets` 服务面（mount/list/defaultId/composedPreset）保持不变。
+- 插件现在在新版 DSH 上接管定时任务：profile patch 禁用官方 `schedule` Host 服务和内置「自动化任务」设置页（`ui-schedule`）。官方 `tool-schedule` 会话工具保留声明但会自动失效——它只在 `ctx.inject(['schedule'])` 回调内注册工具，服务关闭后即从工具目录消失，无需额外 patch。停用本插件即可恢复官方 schedule 全套功能。
+- 自动化系统提示词精简为两句路由引导：定时需求一律走 `automation_create`，用户没主动要求时不建议操作系统级 cron。参数映射、示例和 Asia/Shanghai 默认时区移入 `automation_create` 工具描述。全文不再提及 `schedule_create`——官方工具已禁用，再点名它只会诱导模型调用不存在的工具。
+
 ## 0.4.0 — 2026-10-03
 
 - 侧栏不再依赖 `dsh-codex-ui`：直接包裹官方工作区任务树，"任务 / 定时任务"页签与官方搜索、工作区菜单共存；相关探测与降级逻辑一并移除。
