@@ -1,4 +1,4 @@
-/** 仅 loopback 的 Web 客户端 RPC 适配器。 */
+/** Web 客户端 RPC 适配器。 */
 import { type AutomationService } from './service.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 export interface RpcContext {
@@ -7,8 +7,9 @@ export interface RpcContext {
     };
     readonly connection: {
         requestRejection(request: unknown): 401 | 403 | undefined;
+        readonly browserPeer?: unknown;
         readonly rpc: {
-            handle(channel: string, handler: (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>, options: {
+            handle(channel: string, handler: (endpoint: string, payload: unknown, signal: AbortSignal, peer?: unknown) => Promise<unknown>, options: {
                 readonly authority: 'loopback' | 'trusted-host';
             }): () => Promise<void>;
         };

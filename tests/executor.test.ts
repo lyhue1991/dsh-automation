@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { applyUnattendedPermission, pinAutomationSessionTitle, readSessionEvents, settlesWithin, summarizeRun, unattendedToolGuardReason } from '../src/executor.ts'
+import { applyUnattendedPermission, installAutomationModelSelection, pinAutomationSessionTitle, readSessionEvents, settlesWithin, summarizeRun, unattendedToolGuardReason } from '../src/executor.ts'
+
+test('新版 Agent 接收完整模型选择，旧版无 model.select 仍可初始化', () => {
+  const selection = { provider: 'deepseek', model: 'v4', reasoningEffort: 'high' }
+  const received: unknown[] = []
+  installAutomationModelSelection({} as never, {
+    session: {},
+    model: { select(value) { received.push(value) } },
+  }, selection)
+  installAutomationModelSelection({} as never, { session: {} }, selection)
+  assert.deepEqual(received, [selection])
+})
 
 test('无人值守运行通过官方服务应用完整权限预设', () => {
   const selected: string[] = []

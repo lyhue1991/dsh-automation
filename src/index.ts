@@ -107,6 +107,16 @@ export function composedAgentPresetId(
   return typeof header === 'string' && header !== '' ? header : undefined
 }
 
+export function listRootAgents<T extends { readonly session?: { readonly header?: { readonly origin?: string } } }>(
+  agents: { readonly roots?: () => Iterable<T>; readonly list?: () => readonly T[] },
+): T[] {
+  if (typeof agents.roots === 'function') return Array.from(agents.roots())
+  if (typeof agents.list === 'function') {
+    return agents.list().filter(agent => agent.session?.header?.origin !== 'subagent')
+  }
+  throw new TypeError('DSH Agent registry does not expose roots() or list()')
+}
+
 export function mountAutomationRpc(ctx: Context, service: AutomationService): void {
   const dynamicContext = ctx as DynamicInjectionContext
   dynamicContext.inject(['webServer'], webCtx => {
@@ -137,6 +147,10 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
     let stopPresetSelected = () => {}
     let stopSessionGone = () => {}
     const excludedPresets = new Set(config.excludedAgentPresets)
+    const rootAgents = (): any[] => listRootAgents(ctx.agents as unknown as {
+      roots?: () => Iterable<any>
+      list?: () => readonly any[]
+    })
     const presetOf = (agent: any): string | undefined =>
       composedAgentPresetId(ctx.agentPresets as never, agent)
     const isExcluded = (agent: any): boolean => {
@@ -168,7 +182,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
       const mountTools = (agent: any): void => {
         if (!alive || agentTools.has(agent)
           || service.ownsSession(String(agent.id), readSessionEvents(agent.session, 0))) return
-        if (!ctx.agents.roots().includes(agent)) return
+        if (!rootAgents().includes(agent)) return
         if (isExcluded(agent)) return
         const dispose = agent.ctx.effect(
           () => registerAutomationTools(service, agent),
@@ -176,7 +190,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
         )
         agentTools.set(agent, dispose)
       }
-      for (const agent of ctx.agents.roots()) mountTools(agent)
+      for (const agent of rootAgents()) mountTools(agent)
       stopCreated = ctx.on('agent/created', ({ agent }: any) => {
         mountTools(agent)
         return Promise.resolve()
@@ -190,7 +204,7 @@ export async function apply(ctx: Context, rawConfig: Config): Promise<void> {
       // ⟺ 已注册”一致。切换到被排除的 preset 时立即卸载，反向切换则
       // 通过 mountTools 的完整守卫重新挂载。
       stopPresetSelected = ctx.on('agent-preset/selected', (sessionId: unknown, _agentPreset: unknown) => {
-        const agent = ctx.agents.roots().find((candidate: any) => String(candidate.id) === String(sessionId))
+        const agent = rootAgents().find((candidate: any) => String(candidate.id) === String(sessionId))
         if (agent === undefined) return Promise.resolve()
         if (isExcluded(agent)) {
           const dispose = agentTools.get(agent)

@@ -98,6 +98,28 @@ test('RPC 适配器只接受已知端点并返回失败关闭信封', async () =
   assert.equal(result.error.code, 'bad-request')
 })
 
+test('新版 Connection RPC 只允许浏览器 Peer 管理任务', async () => {
+  const browserPeer = { principal: { kind: 'owner' } }
+  let handler: ((endpoint: string, payload: unknown, signal: AbortSignal, peer?: unknown) => Promise<any>) | undefined
+  registerAutomationRpc({
+    logger: { warn() {} },
+    connection: {
+      browserPeer,
+      rpc: {
+        handle(_channel: string, next: typeof handler) {
+          handler = next
+          return async () => {}
+        },
+      },
+    },
+  } as never, {} as never)
+  const signal = new AbortController().signal
+  const foreign = await handler!('snapshot', {}, signal, { principal: { kind: 'owner' } })
+  assert.equal(foreign.error.code, 'forbidden')
+  const browser = await handler!('missing', {}, signal, browserPeer)
+  assert.equal(browser.error.code, 'bad-request')
+})
+
 test('RPC 限制任务字段长度并隐藏内部异常文案', async () => {
   let handler: ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<any>) | undefined
   const warnings: string[] = []

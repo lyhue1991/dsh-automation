@@ -1,4 +1,4 @@
-/** 仅 loopback 的 Web 客户端 RPC 适配器。 */
+/** Web 客户端 RPC 适配器。 */
 import { AutomationRequestError, type AutomationService } from './service.ts'
 import type { AutomationSchedule as DomainSchedule, Weekday } from './types.ts'
 import { readdir } from 'node:fs/promises'
@@ -20,10 +20,11 @@ export interface RpcContext {
   }
   readonly connection: {
     requestRejection(request: unknown): 401 | 403 | undefined
+    readonly browserPeer?: unknown
     readonly rpc: {
       handle(
         channel: string,
-        handler: (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>,
+        handler: (endpoint: string, payload: unknown, signal: AbortSignal, peer?: unknown) => Promise<unknown>,
         options: { readonly authority: 'loopback' | 'trusted-host' },
       ): () => Promise<void>
     }
@@ -202,7 +203,10 @@ async function snapshotValue(service: AutomationService, payload: Record<string,
 }
 
 export function registerAutomationRpc(ctx: RpcContext, service: AutomationService): () => Promise<void> {
-  const endpointHandler = async (endpoint: string, rawPayload: unknown, signal: AbortSignal) => {
+  const endpointHandler = async (endpoint: string, rawPayload: unknown, signal: AbortSignal, peer?: unknown) => {
+    if (peer !== undefined && peer !== ctx.connection.browserPeer) {
+      return { ok: false, error: { code: 'forbidden', message: 'This automation RPC is only available to the browser owner.', details: {} } }
+    }
     try {
       const payload = record(rawPayload, 'payload')
       switch (endpoint) {
@@ -318,6 +322,7 @@ export function registerAutomationRpc(ctx: RpcContext, service: AutomationServic
   }
 
   try {
+    // 旧版 Connection 使用 authority；新版忽略第三参，因此 handler 还会校验 browserPeer。
     return ctx.connection.rpc.handle(CHANNEL, endpointHandler, { authority: 'loopback' })
   } catch (error) {
     if (typeof ctx.connection.requestRejection !== 'function') throw error

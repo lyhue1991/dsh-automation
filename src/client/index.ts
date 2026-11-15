@@ -11,7 +11,7 @@ import {
 import { applyPrefillToDom, peekChatPrefill, subscribeChatPrefill, takeChatPrefill } from './prefill.js'
 import { createAutomationRuntime } from './runtime.js'
 import { NativeScheduleSessionList } from './native-session-list.js'
-import { NativeScheduleShell, ScheduleRail } from './ScheduleRail.js'
+import { NativeScheduleShell } from './ScheduleRail.js'
 import { AUTOMATION_SESSION_PREFIX, ensureOpenScheduledSession, pickWrappableWorkspacesEntry, resolveArchiveSession, resolveOfficialTreeComponent } from './schedule-rail-model.js'
 import { installStyles } from './styles.js'
 
@@ -75,6 +75,13 @@ export function apply(ctx: ClientContext): void {
   const permissionT = ctx.locale.bind('permission.access')
   const modelT = ctx.locale.bind('model')
   const runtime = createAutomationRuntime(ctx.connection.rpc)
+  const renderAutomationView = (closeSettings?: () => void) => {
+    const sessions = Object.entries(ctx.sessions?.list?.getSnapshot().byId ?? {}).map(([id, value]) => {
+      const item = value as { title?: string; cwd?: string; workspacePath?: string }
+      return { id, ...(item.title === undefined ? {} : { title: item.title }), ...(item.cwd === undefined && item.workspacePath === undefined ? {} : { cwd: item.cwd ?? item.workspacePath }) }
+    })
+    return createElement(AutomationView, { t, permissionT, modelT, runtime, rpc: ctx.connection.rpc, sessions, ...(closeSettings === undefined ? {} : { closeSettings }) })
+  }
   ctx.effect(() => installSettingsNavIcon(() => [t('tab'), 'Scheduled tasks', '定时任务']), 'dsh-automation: settings icon')
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
@@ -84,24 +91,7 @@ export function apply(ctx: ClientContext): void {
     label: () => t('tab'),
     icon: 'schedule',
   }, function ScheduledTasksSettings(props: { close?: () => void }) {
-    const sessions = Object.entries(ctx.sessions?.list?.getSnapshot().byId ?? {}).map(([id, value]) => {
-      const item = value as { title?: string; cwd?: string; workspacePath?: string }
-      return { id, ...(item.title === undefined ? {} : { title: item.title }), ...(item.cwd === undefined && item.workspacePath === undefined ? {} : { cwd: item.cwd ?? item.workspacePath }) }
-    })
-    return createElement(AutomationView, { t, permissionT, modelT, runtime, rpc: ctx.connection.rpc, sessions, ...(props.close === undefined ? {} : { closeSettings: props.close }) })
-  }))
-  ctx.slots.inject('sidebar.schedule', () => ctx.slots.register({
-    name: 'sidebar.schedule',
-    id: 'dsh-automation-schedule',
-    order: 10,
-    locale: NS,
-    label: () => t('sidebar.tab'),
-  }, function AutomationScheduleRail(props: { openSession?: (sessionId: string) => void }) {
-    return createElement(ScheduleRail, {
-      t,
-      runtime,
-      openSession: createScheduledSessionOpener(ctx, runtime, props.openSession),
-    })
+    return renderAutomationView(props.close)
   }))
   ctx.slots.inject('sidebar.workspaces', () => {
     let wrappedEntry: MutableSlotEntry | undefined
@@ -257,6 +247,11 @@ function createScheduledSessionOpener(
   runtime: ReturnType<typeof createAutomationRuntime>,
   hostOpen?: (sessionId: string) => void,
 ): (sessionId: string) => void {
+  const openRuntime = typeof ctx.uiWorkspace?.openSession === 'function'
+    ? (id: string) => { ctx.uiWorkspace!.openSession!(id) }
+    : typeof ctx.sessions?.open === 'function'
+      ? (id: string) => { ctx.sessions!.open!(id) }
+      : undefined
   return (sessionId) => {
     void ensureOpenScheduledSession({
       id: sessionId,
@@ -267,7 +262,7 @@ function createScheduledSessionOpener(
         return snap?.byId?.[id] !== undefined || (snap?.ids ?? []).some(item => item === id)
       },
       ...(ctx.sessions?.refresh === undefined ? {} : { refresh: () => ctx.sessions!.refresh!() }),
-      ...(ctx.sessions === undefined ? {} : { openRuntime: (id) => { ctx.sessions!.open(id) } }),
+      ...(openRuntime === undefined ? {} : { openRuntime }),
       ...(hostOpen === undefined ? {} : { openHost: hostOpen }),
     })
   }

@@ -33,6 +33,7 @@ export interface ClientRpc {
 export interface SlotRegisterOptions {
   readonly name: string
   readonly id?: string
+  readonly key?: string
   readonly order?: number
   readonly locale?: string
   readonly label?: () => string
@@ -46,11 +47,12 @@ export interface ClientContext {
   effect(factory: () => void | (() => void), label?: string): void
   connection: { readonly rpc: ClientRpc }
   uiWorkspace?: {
+    openSession?(sessionId: string): void
     archiveSession(sessionId: string, options?: { readonly stopActivity?: boolean }): Promise<void>
     unarchiveSession(sessionId: string): Promise<void>
   }
   sessions?: {
-    open(id: string): void
+    open?(id: string): void
     refresh?: () => Promise<void>
     list?: {
       getSnapshot(): { ids?: readonly string[]; byId?: Record<string, unknown>; current?: string | null }

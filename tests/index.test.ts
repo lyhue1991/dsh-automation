@@ -3,10 +3,20 @@ import test from 'node:test'
 import {
   composedAgentPresetId,
   humanApprovalReason,
+  listRootAgents,
   mountAutomationRpc,
   needsHumanApproval,
   sessionApprovalPolicy,
 } from '../src/index.ts'
+
+test('Agent registry 支持新版 list() 并排除子 Agent', () => {
+  const root = { id: 'root', session: { header: { origin: 'user' } } }
+  const subagent = { id: 'child', session: { header: { origin: 'subagent' } } }
+  const legacy = { id: 'legacy', session: { header: { origin: 'subagent' } } }
+  assert.deepEqual(listRootAgents({ list: () => [root, subagent] }), [root])
+  assert.deepEqual(listRootAgents({ roots: () => [legacy], list: () => [root] }), [legacy])
+  assert.throws(() => listRootAgents({}), /roots\(\) or list\(\)/)
+})
 
 test('composedAgentPresetId 优先 live scope，其次 session header', () => {
   const presets = { composedPreset: (ctx: unknown) => (ctx === 'live-ctx' ? 'minimal' : undefined) }

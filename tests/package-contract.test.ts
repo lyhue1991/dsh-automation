@@ -27,8 +27,12 @@ test('包保持可安装的 DSH bundle 与 Web client 契约', async () => {
   assert.equal(manifest.dsh?.client?.platform, 'web')
   assert.deepEqual(manifest.dsh?.client?.inject, [
     '@deepseek-ai/dsh-client-connection',
-    '@deepseek-ai/dsh-client-runtime',
+    '@deepseek-ai/dsh-api-session-controller',
     '@deepseek-ai/dsh-client-locale',
+    '@deepseek-ai/dsh-client-ui-layout',
+    '@deepseek-ai/dsh-client-ui-sidebar',
+    '@deepseek-ai/dsh-client-ui-workspace',
+    '@deepseek-ai/dsh-client-ui-primitives',
     '@deepseek-ai/dsh-client-ui-settings',
     '@deepseek-ai/dsh-client-ui-conversation',
   ])
@@ -42,6 +46,7 @@ test('包保持可安装的 DSH bundle 与 Web client 契约', async () => {
   assert.equal(manifest.peerDependencies?.react, '^18.2.0')
   assert.equal(manifest.peerDependencies?.['@deepseek-ai/dsh-permission-presets'], '>=0.2.1-rc.2 <0.3.0')
   assert.deepEqual(manifest.peerDependenciesMeta?.react, { optional: true })
+  assert.deepEqual(manifest.peerDependenciesMeta?.['react-dom'], { optional: true })
 
   const patch = await readFile(new URL('cordis.patch.yml', root), 'utf8')
   assert.match(patch, /^\s*- insert:\s*$/m)

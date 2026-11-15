@@ -1,4 +1,5 @@
 /** 已认领 run 的独立 Agent 执行边界。 */
+import { type ModelSelection } from '@deepseek-ai/dsh-agent';
 import type { Context } from '@deepseek-ai/cordis';
 import type { PermissionPresetService } from './permission-presets.ts';
 import type { AutomationDefinition, AutomationRun } from './types.ts';
@@ -39,6 +40,13 @@ export interface ExecutorConfig {
     readonly onHandleKept?: (sessionId: string, handle: AgentHandle) => void;
 }
 type AgentHandle = Awaited<ReturnType<Context['agents']['create']>>;
+interface AgentSetupAgent {
+    readonly session: unknown;
+    readonly model?: {
+        select?(selection: ModelSelection): void;
+    };
+}
+export declare function installAutomationModelSelection(agentCtx: Context, agent: AgentSetupAgent, selection: ModelSelection): void;
 /** 从持久化日志恢复一个已完成的自动化会话，供用户继续交互。 */
 export declare function resumeAutomationSession(ctx: Context, target: AutomationRun['targetSnapshot'], sessionId: string, ownerCtx?: Context): Promise<Awaited<ReturnType<Context['agents']['resume']>>>;
 /** 先应用官方预设的完整语义，再让无人值守审批 fail-closed。 */

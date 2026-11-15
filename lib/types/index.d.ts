@@ -50,6 +50,16 @@ export declare function composedAgentPresetId(agentPresets: {
         };
     };
 }): string | undefined;
+export declare function listRootAgents<T extends {
+    readonly session?: {
+        readonly header?: {
+            readonly origin?: string;
+        };
+    };
+}>(agents: {
+    readonly roots?: () => Iterable<T>;
+    readonly list?: () => readonly T[];
+}): T[];
 export declare function mountAutomationRpc(ctx: Context, service: AutomationService): void;
 export declare function apply(ctx: Context, rawConfig: Config): Promise<void>;
 export type * from './types.ts';
