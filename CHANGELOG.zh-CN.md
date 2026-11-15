@@ -2,6 +2,14 @@
 
 [English](CHANGELOG.md)
 
+## 0.5.1 — 2026-11-15
+
+- 适配 DSH 0.2.2：peer/dev 依赖升级到 `0.2.2-rc.2`，客户端 inject 列表改用新的 `dsh-api-session-controller` 与 `dsh-client-ui-layout/sidebar/workspace/primitives` 等包，移除已废弃的 `dsh-client-runtime`，并把 `react-dom` 加为可选 peer 依赖。
+- Agent 注册表不再假定 `ctx.agents.roots()` 一定存在：新增 `listRootAgents()`，在新版 `list()` 接口上过滤 subagent，保证自动化工具挂载、preset 切换与 preset 排除逻辑在 0.2.2 上仍然生效。
+- 模型选择完整透传：`agentOptions` 展开整个 selection，并新增 `installAutomationModelSelection()` 先调用新版 `agent.model.select()` 再安装选择状态，避免恢复会话或无人值守运行时模型回落到默认值。
+- RPC 增加来源校验：新版 Connection 忽略 `authority` 选项后，handler 通过 `peer` 与 `ctx.connection.browserPeer` 比对，非浏览器属主的请求直接返回 `forbidden`。
+- 设置页与侧栏：移除独立的 `sidebar.schedule` 槽位注册，统一由设置页渲染任务视图；打开定时会话优先走 `ctx.uiWorkspace.openSession()`，回退 `ctx.sessions.open()`；补齐主区域滚动、内边距与窄屏样式，并新增客户端入口回归测试。
+
 ## 0.5.0 — 2026-10-18
 
 - 兼容升级到 DSH 0.2.x：peer 依赖要求 `>=0.2.1-rc.2 <0.3.0`，dev 依赖钉在 `0.2.1-rc.2`，preset 导入从 `dsh-agent-presets` 迁移到拆分后的 `dsh-agent-preset` + `dsh-agent-preset-registry`。`agentPresets` 服务面（mount/list/defaultId/composedPreset）保持不变。

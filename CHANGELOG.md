@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.5.1 — 2026-11-15
+
+- Adapt to DSH 0.2.2: peer/dev dependencies move to `0.2.2-rc.2`, and the client inject list switches to the new `dsh-api-session-controller` and `dsh-client-ui-layout/sidebar/workspace/primitives` packages while dropping the removed `dsh-client-runtime`. `react-dom` is now an optional peer dependency.
+- The agent registry no longer assumes `ctx.agents.roots()` exists: `listRootAgents()` falls back to the newer `list()` API and filters out subagents, so tool mounting, preset switching and preset exclusion keep working on 0.2.2.
+- Model selection is passed through in full: `agentOptions` spreads the whole selection, and `installAutomationModelSelection()` calls the new `agent.model.select()` before installing the selection state, so resumed sessions and unattended runs no longer fall back to the default model.
+- RPC calls are now bound to the browser owner: because newer Connection builds ignore the `authority` option, the handler compares `peer` with `ctx.connection.browserPeer` and rejects other callers with `forbidden`.
+- Settings and sidebar: the standalone `sidebar.schedule` slot registration is removed in favour of the shared settings view; opening a scheduled session prefers `ctx.uiWorkspace.openSession()` and falls back to `ctx.sessions.open()`. The main pane gains proper scrolling, padding and narrow-screen styles, with new client regression tests covering the entry points.
+
 ## 0.5.0 — 2026-10-18
 
 - Upgrade to DSH 0.2.x: peer dependencies now require `>=0.2.1-rc.2 <0.3.0`, dev dependencies are pinned to `0.2.1-rc.2`, and preset imports move from `dsh-agent-presets` to the split `dsh-agent-preset` + `dsh-agent-preset-registry` packages. The `agentPresets` service surface (mount/list/defaultId/composedPreset) is unchanged.
